@@ -23,6 +23,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_trains_per_train_loop,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
+            demo_buffer: ReplayBuffer = None
     ):
         super().__init__(
             trainer,
@@ -31,6 +32,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             exploration_data_collector,
             evaluation_data_collector,
             replay_buffer,
+            demo_buffer
         )
         self.batch_size = batch_size
         self.max_path_length = max_path_length
@@ -61,24 +63,34 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 discard_incomplete_paths=True,
             )
             gt.stamp('evaluation sampling')
+            print("Epoch", epoch)
 
-            for _ in range(self.num_train_loops_per_epoch):
+            for cycle in range(self.num_train_loops_per_epoch):
+                print("\n Cycle", cycle, epoch)
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
                     self.num_expl_steps_per_train_loop,
                     discard_incomplete_paths=False,
                 )
                 gt.stamp('exploration sampling', unique=False)
+                for path in new_expl_paths:
+                    print("Added episode", len(path['observations']))
 
                 self.replay_buffer.add_paths(new_expl_paths)
+                print("Replay buf", self.replay_buffer._size)
                 gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
-                for _ in range(self.num_trains_per_train_loop):
+                for tren in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
-                    self.trainer.train(train_data)
+                    if not self.demo_buffer == None:
+                        demo_data = self.demo_buffer.random_batch(int(self.batch_size*(1/8)))
+                        self.trainer.train(train_data, demo_data)
+                    else:
+                        self.trainer.train(train_data)
+                print("Trained for", tren + 1, "times")
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
-
+            print("Ending epoch")
             self._end_epoch(epoch)

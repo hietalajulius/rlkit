@@ -28,6 +28,7 @@ class DDPGTrainer(TorchTrainer):
             qf_learning_rate=1e-3,
             qf_weight_decay=0,
             target_hard_update_period=1000,
+            target_soft_update_period=1,
             tau=1e-2,
             use_soft_update=False,
             qf_criterion=None,
@@ -52,6 +53,7 @@ class DDPGTrainer(TorchTrainer):
         self.qf_learning_rate = qf_learning_rate
         self.qf_weight_decay = qf_weight_decay
         self.target_hard_update_period = target_hard_update_period
+        self.target_soft_update_period = target_soft_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.qf_criterion = qf_criterion
@@ -72,12 +74,27 @@ class DDPGTrainer(TorchTrainer):
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
 
-    def train_from_torch(self, batch):
+    def train_from_torch(self, batch, demo_batch=None):
+        has_images = 'images' in batch.keys()
+
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+
+        if has_images:
+            images = batch['images']
+        
+        if not demo_batch == None:
+            demo_rewards = demo_batch['rewards']
+            demo_terminals = demo_batch['terminals']
+            demo_obs = demo_batch['observations']
+            demo_actions = demo_batch['actions']
+            demo_next_obs = demo_batch['next_observations']
+
+            if has_images:
+                demo_images = demo_batch['images']
 
         """
         Policy operations.
@@ -96,15 +113,43 @@ class DDPGTrainer(TorchTrainer):
                     pre_activation_policy_loss * self.policy_pre_activation_weight
             )
         else:
-            policy_actions = self.policy(obs)
+            if has_images:
+                policy_actions = self.policy(torch.cat((images,obs[:,0:3],obs[:,12:15],obs[:,-3:]), dim=1))
+            else:
+                policy_actions = self.policy(obs)
             q_output = self.qf(obs, policy_actions)
             raw_policy_loss = policy_loss = - q_output.mean()
+
+            if not demo_batch == None:
+                if has_images:
+                    demo_policy_actions = self.policy(torch.cat((demo_images,demo_obs[:,0:3],demo_obs[:,12:15],demo_obs[:,-3:]), dim=1))
+                else:
+                    demo_policy_actions = self.policy(demo_obs)
+                demo_policy_obs_q_output = self.qf(demo_obs, demo_policy_actions)
+                q_demo_output = self.qf(demo_obs, demo_actions)
+                mask = torch.flatten(q_demo_output > demo_policy_obs_q_output)
+                demo_policy_loss = -0.001 * demo_policy_obs_q_output.mean()
+                demo_bc_loss = 0.0078 * ((demo_policy_actions[mask] - demo_actions[mask])**2).sum(dim=1).mean()
+                policy_loss += demo_policy_loss
+                policy_loss += demo_bc_loss
+
+        if not demo_batch == None:
+            rewards = torch.cat((demo_batch['rewards'], batch['rewards']), dim=0)
+            terminals = torch.cat((demo_batch['terminals'], batch['terminals']), dim=0)
+            obs = torch.cat((demo_batch['observations'], batch['observations']), dim=0)
+            actions = torch.cat((demo_batch['actions'], batch['actions']), dim=0)
+            next_obs = torch.cat((demo_batch['next_observations'], batch['next_observations']), dim=0)
+
+            if has_images:
+                next_images = torch.cat((demo_batch['next_images'], batch['next_images']), dim=0)
 
         """
         Critic operations.
         """
-
-        next_actions = self.target_policy(next_obs)
+        if has_images:
+            next_actions = self.target_policy(torch.cat((next_images,next_obs[:,0:3],next_obs[:,12:15],next_obs[:,-3:]), dim=1))
+        else:
+            next_actions = self.target_policy(next_obs)
         # speed up computation by not backpropping these gradients
         next_actions.detach()
         target_q_values = self.target_qf(
@@ -177,8 +222,10 @@ class DDPGTrainer(TorchTrainer):
 
     def _update_target_networks(self):
         if self.use_soft_update:
-            ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
-            ptu.soft_update_from_to(self.qf, self.target_qf, self.tau)
+            if self._n_train_steps_total % self.target_soft_update_period == 0:
+                print("Soft update", self._n_train_steps_total)
+                ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
+                ptu.soft_update_from_to(self.qf, self.target_qf, self.tau)
         else:
             if self._n_train_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.qf, self.target_qf)
@@ -189,6 +236,7 @@ class DDPGTrainer(TorchTrainer):
 
     def end_epoch(self, epoch):
         self._need_to_update_eval_statistics = True
+
 
     @property
     def networks(self):

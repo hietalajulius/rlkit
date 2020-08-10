@@ -96,6 +96,12 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
     def num_steps_can_sample(self):
         return self._size
+    
+    def add_paths_from_file(self, filename):
+        #filename = '/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_sideways_rlkit_100.npz'
+        paths = np.load(filename, allow_pickle=True)
+        for path in paths['rollouts']:
+            self.add_path(path)
 
     def add_path(self, path):
         obs = path["observations"]
@@ -242,6 +248,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
+
         batch = {
             'observations': new_obs,
             'actions': new_actions,
@@ -251,18 +258,21 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             'resampled_goals': resampled_goals,
             'indices': np.array(indices).reshape(-1, 1),
         }
+        if 'image' in self.internal_keys:
+            batch['images'] = new_obs_dict['image']
+            batch['next_images'] = new_next_obs_dict['image']
         return batch
 
     def _batch_obs_dict(self, indices):
         return {
             key: self._obs[key][indices]
-            for key in self.ob_keys_to_save
+            for key in self.ob_keys_to_save + self.internal_keys
         }
 
     def _batch_next_obs_dict(self, indices):
         return {
             key: self._next_obs[key][indices]
-            for key in self.ob_keys_to_save
+            for key in self.ob_keys_to_save + self.internal_keys
         }
 
 

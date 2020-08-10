@@ -7,6 +7,8 @@ from rlkit.core import logger, eval_util
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import DataCollector
 
+from torch.utils.tensorboard import SummaryWriter
+
 
 def _get_epoch_timings():
     times_itrs = gt.get_times().stamps.itrs
@@ -30,6 +32,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             exploration_data_collector: DataCollector,
             evaluation_data_collector: DataCollector,
             replay_buffer: ReplayBuffer,
+            demo_buffer: ReplayBuffer = None,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -37,9 +40,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.expl_data_collector = exploration_data_collector
         self.eval_data_collector = evaluation_data_collector
         self.replay_buffer = replay_buffer
+        self.demo_buffer = demo_buffer
         self._start_epoch = 0
 
         self.post_epoch_funcs = []
+
+        self.writer = SummaryWriter(log_dir='runs/'+logger._prefixes[0])
 
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
@@ -127,6 +133,9 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             eval_util.get_generic_path_information(eval_paths),
             prefix="evaluation/",
         )
+
+        self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(eval_paths)['env_infos/final/is_success Mean'], epoch)
+        print("Logged eval success rate")
 
         """
         Misc

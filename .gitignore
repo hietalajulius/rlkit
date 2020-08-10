@@ -7,3 +7,7 @@ rlkit/launchers/conf_private.py
 MANIFEST
 *.egg-info
 \.idea/
+.ipynb_checkpoints/visualize-checkpoint.ipynb
+data
+.vscode
+runs

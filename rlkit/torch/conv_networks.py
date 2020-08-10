@@ -4,6 +4,10 @@ from torch import nn as nn
 from rlkit.pythonplusplus import identity
 
 import numpy as np
+from rlkit.policies.base import Policy
+from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+from rlkit.torch.core import eval_np
+import cv2
 
 
 class CNN(nn.Module):
@@ -106,6 +110,12 @@ class CNN(nn.Module):
                             self.input_channels,
                             self.input_height,
                             self.input_width)
+        '''
+        image = h[0].numpy().reshape(84,84,1)
+        print("IMG in env", image, "extra inp", extra_fc_input)
+        cv2.imshow('env', image)
+        cv2.waitKey(1)
+        '''
 
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers,
                                use_batch_norm=self.batch_norm_conv)
@@ -129,6 +139,40 @@ class CNN(nn.Module):
             h = self.hidden_activation(h)
         return h
 
+class CNNPolicy(CNN, Policy):
+    """
+    A simpler interface for creating policies.
+    """
+
+    def __init__(
+            self,
+            *args,
+            obs_normalizer: TorchFixedNormalizer = None,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.obs_normalizer = obs_normalizer
+
+    def forward(self, obs,  **kwargs):
+        if self.obs_normalizer and self.added_fc_input_size:
+            conv_input = obs.narrow(start=0,
+                                  length=self.conv_input_length,
+                                  dim=1).contiguous()
+            extra_fc_input = obs.narrow(start=self.conv_input_length,
+                                          length=self.added_fc_input_size,
+                                          dim=1)
+            extra_fc_input = self.obs_normalizer.normalize(extra_fc_input)
+            obs = torch.cat((conv_input,extra_fc_input), dim=1)
+
+        return super().forward(obs, **kwargs)
+
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return eval_np(self, obs)
+        
 
 class TwoHeadDCNN(nn.Module):
     def __init__(

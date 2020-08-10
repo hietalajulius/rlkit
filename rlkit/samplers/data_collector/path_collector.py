@@ -114,6 +114,7 @@ class GoalConditionedPathCollector(PathCollector):
             max_path_length,
             num_steps,
             discard_incomplete_paths,
+            render=False
     ):
         paths = []
         num_steps_collected = 0
@@ -126,7 +127,7 @@ class GoalConditionedPathCollector(PathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
-                render=self._render,
+                render=render,
                 render_kwargs=self._render_kwargs,
                 observation_key=self._observation_key,
                 desired_goal_key=self._desired_goal_key,
