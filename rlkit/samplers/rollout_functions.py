@@ -34,9 +34,10 @@ def multitask_rollout(
     while path_length < max_path_length:
         dict_obs.append(o)
         if observation_key:
-            i = o['image'].flatten()
+            #i = o['image'].flatten()
             o = o[observation_key]
-        new_obs = np.hstack((i, o[0:3], o[12:15], goal))
+        #new_obs = np.hstack((i, o[0:3], o[12:15], goal))
+        new_obs = np.hstack((o,goal))
         a, agent_info = agent.get_action(new_obs, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
         if render:

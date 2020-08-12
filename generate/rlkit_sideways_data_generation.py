@@ -105,7 +105,7 @@ def main():
     while successes < num_examples:
         try_n += 1
         print("ITERATION NUMBER ", try_n, "Success so far", successes)
-        rollout, success = multitask_rollout(env,actor,max_path_length=50, render=False,observation_key='observation',desired_goal_key='desired_goal',return_dict_obs=True)
+        rollout, success = multitask_rollout(env,actor,max_path_length=50, render=True,observation_key='observation',desired_goal_key='desired_goal',return_dict_obs=True)
         if success:
             successes += 1
             rollouts.append(rollout)
