@@ -13,11 +13,20 @@ from rlkit.exploration_strategies.gaussian_and_epsilon_strategy import GaussianA
 from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+from generate.rlkit_diagonal_data_generation import make_demo_rollouts
+import argparse
+
+def argsparser():
+    parser = argparse.ArgumentParser("Parser")
+    parser.add_argument('--run', help='run ID')
+    parser.add_argument('--title', help='run title')
+    return parser.parse_args()
 
 
-def experiment(variant):
-    eval_env = gym.make('ClothReach-v1').env
-    expl_env = gym.make('ClothReach-v1').env
+
+def experiment(variant, demo_paths=None):
+    eval_env = gym.make(variant['env_name']).env
+    expl_env = gym.make(variant['env_name']).env
 
     observation_key = 'observation'
     desired_goal_key = 'desired_goal'
@@ -38,15 +47,19 @@ def experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['demo_buffer_kwargs']
     )
-    demo_buffer.add_paths_from_file('/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz')
+
+    if demo_paths is None:
+        demo_buffer.add_paths_from_file(variant['demo_file_name'])
+    else:
+        demo_buffer.add_paths(demo_paths)
 
     obs_dim = eval_env.observation_space.spaces['observation'].low.size
     action_dim = eval_env.action_space.low.size
     goal_dim = eval_env.observation_space.spaces['desired_goal'].low.size
     es = GaussianAndEpislonStrategy(
         action_space=expl_env.action_space,
-        max_sigma=.2,
-        min_sigma=.2,  # constant sigma
+        max_sigma=.1,
+        min_sigma=.1,  # constant sigma
         epsilon=.1,
     )
     qf = FlattenMlp(
@@ -101,12 +114,6 @@ def experiment(variant):
     algorithm.to(ptu.device)
     algorithm.train()
 
-    eval_path_collector.collect_new_paths(
-            50,
-            1000,
-            discard_incomplete_paths=True,
-            render=True
-        )
 
 
 
@@ -115,9 +122,11 @@ if __name__ == "__main__":
     variant = dict(
         algorithm='HER-DDPG',
         version='normal',
+        env_name='ClothDiagonal-v1',
+        demo_file_name='/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz',
         algo_kwargs=dict(
             batch_size=1024,
-            num_epochs=20,
+            num_epochs=50,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=50,
             num_trains_per_train_loop=40,
@@ -148,5 +157,11 @@ if __name__ == "__main__":
             hidden_sizes=[256, 256, 256],
         ),
     )
-    setup_logger('her-ddpg-diagonal-full-demos', variant=variant)
-    experiment(variant)
+    args = argsparser()
+    setup_logger('her-ddpg-diagonal-sigma-0.1-run-'+ str(args.title) + str(args.run), variant=variant)
+
+    if args.title == 'samedemos':
+        experiment(variant, demo_paths=None)
+    else:
+        demo_paths = make_demo_rollouts(variant['env_name'], 100)
+        experiment(variant, demo_paths=demo_paths)
