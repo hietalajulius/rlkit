@@ -55,6 +55,8 @@ class CNN(nn.Module):
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
 
+        self.aux_weight = nn.Parameter(torch.ones(15), requires_grad=True)
+
         for out_channels, kernel_size, stride, padding in \
                 zip(n_channels, kernel_sizes, strides, paddings):
             conv = nn.Conv2d(input_channels,
@@ -81,7 +83,10 @@ class CNN(nn.Module):
         fc_input_size += added_fc_input_size
 
         for idx, hidden_size in enumerate(hidden_sizes):
-            fc_layer = nn.Linear(fc_input_size, hidden_size)
+            if idx == 1:
+                fc_layer = nn.Linear(fc_input_size, hidden_size+15)
+            else:
+                fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
             fc_layer.weight.data.uniform_(-init_w, init_w)
@@ -110,12 +115,10 @@ class CNN(nn.Module):
                             self.input_channels,
                             self.input_height,
                             self.input_width)
-        '''
-        image = h[0].numpy().reshape(84,84,1)
-        print("IMG in env", image, "extra inp", extra_fc_input)
-        cv2.imshow('env', image)
-        cv2.waitKey(1)
-        '''
+        #print("Batch image mean in fwd",h.shape, np.mean(h.cpu().numpy()))
+        #image = h[0].numpy().reshape(84,84,3)
+        #cv2.imshow('env', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+        #cv2.waitKey(1)
 
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers,
                                use_batch_norm=self.batch_norm_conv)
@@ -123,11 +126,24 @@ class CNN(nn.Module):
         h = h.view(h.size(0), -1)
         if fc_input:
             h = torch.cat((h, extra_fc_input), dim=1)
-        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers,
-                               use_batch_norm=self.batch_norm_fc)
 
-        output = self.output_activation(self.last_fc(h))
-        return output
+        #h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers,
+                               #use_batch_norm=self.batch_norm_fc)
+        h = self.fc_layers[0](h)
+        h = self.hidden_activation(h)
+
+        h = self.fc_layers[1](h)
+        h1 = h[:,:-15]
+        h2 = h[:,-15:]
+
+        h = self.hidden_activation(h1)
+        h1 = self.fc_layers[2](h1)
+        h1 = self.fc_layers[3](h1)
+
+        aux_output = self.aux_weight * h2
+
+        output = self.output_activation(self.last_fc(h1))
+        return output, aux_output
 
     def apply_forward(self, input, hidden_layers, norm_layers,
                       use_batch_norm=False):
@@ -167,7 +183,9 @@ class CNNPolicy(CNN, Policy):
         return super().forward(obs, **kwargs)
 
     def get_action(self, obs_np):
-        actions = self.get_actions(obs_np[None])
+        print("Getting action, obs mean:", np.mean(obs_np))
+        # make sure things have the same form that come through here
+        actions,_ = self.get_actions(obs_np[None])
         return actions[0, :], {}
 
     def get_actions(self, obs):

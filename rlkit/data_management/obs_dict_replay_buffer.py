@@ -312,10 +312,12 @@ def postprocess_obs_dict(obs_dict):
 
 
 def normalize_image(image):
+    #print("Normalize image i.e. take from buffer", image.shape)
     assert image.dtype == np.uint8
     return np.float64(image) / 255.0
 
 
 def unnormalize_image(image):
+    #print("Unnormalize image i.e. save in buffer", image.shape)
     assert image.dtype != np.uint8
     return np.uint8(image * 255.0)

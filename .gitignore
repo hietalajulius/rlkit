@@ -11,3 +11,5 @@ MANIFEST
 data
 .vscode
 runs
+examples/her/.ipynb_checkpoints
+generate

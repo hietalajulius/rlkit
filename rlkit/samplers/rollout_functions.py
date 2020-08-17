@@ -10,7 +10,7 @@ def multitask_rollout(
         observation_key=None,
         desired_goal_key=None,
         get_action_kwargs=None,
-        return_dict_obs=False,
+        return_dict_obs=False
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -34,9 +34,9 @@ def multitask_rollout(
     while path_length < max_path_length:
         dict_obs.append(o)
         if env.pixels:
-            i = o['image'].flatten()
+            i = o['image'].flatten() #THIS IS HERE ONLY TO GET COMPATIBLE NEXT ACTION
             o = o[observation_key]
-            new_obs = np.hstack((i, o[0:3], o[12:15], goal))
+            new_obs = np.hstack((i, o, goal))
         else:
             o = o[observation_key]
             new_obs = np.hstack((o,goal))
