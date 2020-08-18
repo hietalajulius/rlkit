@@ -20,7 +20,9 @@ class Actor(object):
             action[2] = -1
         self.current_action_idx += 1
         action += np.random.normal(0, 0.1, 3)
-        return action, {}
+
+        #action = np.array([-1.,1.,0.])
+        return action, np.random.normal(0, 0.1, 12), {}
     def reset(self):
         self.current_action_idx = 0
 

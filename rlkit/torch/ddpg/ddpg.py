@@ -120,9 +120,8 @@ class DDPGTrainer(TorchTrainer):
                     cat_d =  torch.cat((demo_images, demo_obs), dim=1)
                     cat_combined = torch.cat((cat_o, cat_d), dim=0)
                     policy_actions, aux_output = self.policy(cat_combined)
-                    #print("Aux output shape", aux_output.size())
-                    off = torch.cat((cat_obs[:,:3], cat_obs[:,6:9], cat_obs[:,12:15], cat_obs[:,18:21], cat_obs[:,-3:]), dim=1) - aux_output
-                    #print("Off shape", off.size())
+
+                    off = torch.cat((cat_obs[:,:3], cat_obs[:,6:9], cat_obs[:,12:15], cat_obs[:,18:21]), dim=1) - aux_output
                     off_loss = (off**2).sum(dim=1).mean()
                     print("off loss", off_loss)
                     demo_policy_actions, _ = self.policy(cat_d)

@@ -8,6 +8,7 @@ from rlkit.policies.base import Policy
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
 from rlkit.torch.core import eval_np
 import cv2
+import copy
 
 
 class CNN(nn.Module):
@@ -29,6 +30,7 @@ class CNN(nn.Module):
             hidden_init=nn.init.xavier_uniform_,
             hidden_activation=nn.ReLU(),
             output_activation=identity,
+            aux_output_size=0
     ):
         if hidden_sizes is None:
             hidden_sizes = []
@@ -55,7 +57,9 @@ class CNN(nn.Module):
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
 
-        self.aux_weight = nn.Parameter(torch.ones(15), requires_grad=True)
+        self.aux_output_size = aux_output_size
+
+        self.aux_weight = nn.Parameter(torch.ones(self.aux_output_size), requires_grad=True)
 
         for out_channels, kernel_size, stride, padding in \
                 zip(n_channels, kernel_sizes, strides, paddings):
@@ -84,7 +88,7 @@ class CNN(nn.Module):
 
         for idx, hidden_size in enumerate(hidden_sizes):
             if idx == 1:
-                fc_layer = nn.Linear(fc_input_size, hidden_size+15)
+                fc_layer = nn.Linear(fc_input_size, hidden_size+self.aux_output_size)
             else:
                 fc_layer = nn.Linear(fc_input_size, hidden_size)
 
@@ -116,7 +120,8 @@ class CNN(nn.Module):
                             self.input_height,
                             self.input_width)
         #print("Batch image mean in fwd",h.shape, np.mean(h.cpu().numpy()))
-        #image = h[0].numpy().reshape(84,84,3)
+        #image = copy.deepcopy(h[0].numpy().reshape(84,84,3))
+        #cv2.imwrite('images/eating.png', cv2.cvtColor(image*255, cv2.COLOR_RGB2BGR))
         #cv2.imshow('env', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
         #cv2.waitKey(1)
 
@@ -133,8 +138,8 @@ class CNN(nn.Module):
         h = self.hidden_activation(h)
 
         h = self.fc_layers[1](h)
-        h1 = h[:,:-15]
-        h2 = h[:,-15:]
+        h1 = h[:,:-self.aux_output_size]
+        h2 = h[:,-self.aux_output_size:]
 
         h = self.hidden_activation(h1)
         h1 = self.fc_layers[2](h1)
@@ -183,10 +188,10 @@ class CNNPolicy(CNN, Policy):
         return super().forward(obs, **kwargs)
 
     def get_action(self, obs_np):
-        print("Getting action, obs mean:", np.mean(obs_np))
+        #print("Getting action, obs mean:", np.mean(obs_np))
         # make sure things have the same form that come through here
-        actions,_ = self.get_actions(obs_np[None])
-        return actions[0, :], {}
+        actions, aux_output = self.get_actions(obs_np[None])
+        return actions[0, :], aux_output[0, :], {}
 
     def get_actions(self, obs):
         return eval_np(self, obs)

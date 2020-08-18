@@ -56,12 +56,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
-        ):
+        ):  
+            print("Evaluation sampling")
             self.eval_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_eval_steps_per_epoch,
                 discard_incomplete_paths=True,
+                evaluate=True
             )
+            print("Evaluation done")
             gt.stamp('evaluation sampling')
             print("Epoch", epoch)
 
