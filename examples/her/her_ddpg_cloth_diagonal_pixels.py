@@ -126,11 +126,11 @@ if __name__ == "__main__":
     variant = dict(
         algorithm='HER-DDPG',
         version='normal',
-        env_name='ClothDiagonalPixels-v1',
+        env_name='ClothDiagonalStrictPixels-v1',
         demo_file_name='/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz',
         algo_kwargs=dict(
             batch_size=1024,
-            num_epochs=50,
+            num_epochs=100,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=50,
             num_trains_per_train_loop=40,
@@ -147,7 +147,7 @@ if __name__ == "__main__":
             policy_learning_rate=1e-3,
         ),
         replay_buffer_kwargs=dict(
-            max_size=int(1E6),
+            max_size=int(5E5),
             fraction_goals_rollout_goals=0.2,  # equal to k = 4 in HER paper
             fraction_goals_env_goals=0,
             internal_keys=['image']
@@ -168,10 +168,11 @@ if __name__ == "__main__":
             strides=[2,2,2,2],
             paddings=[0,0,0,0],
             hidden_sizes=[256,256,256,256],
-            added_fc_input_size=51,
+            added_fc_input_size=54,
             batch_norm_conv=False,
             batch_norm_fc=False,
-            init_w=1e-4
+            init_w=1e-4,
+            aux_output_size=12
         ),
     )
     ptu.set_gpu_mode(True)
