@@ -135,7 +135,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         )
 
         self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(eval_paths)['env_infos/final/is_success Mean'], epoch)
-        self.writer.add_scalar('test/eval', self.trainer.get_diagnostics()['State estimation loss'], epoch)
+        self.writer.add_scalar('test/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
         print("Logged eval success rate and state estimation loss")
 
         """
