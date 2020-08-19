@@ -75,6 +75,16 @@ class DDPGTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
 
     def train_from_torch(self, batch, demo_batch=None):
+        '''
+        print("batch keys", batch.keys())
+        print("obs shape", batch['observations'].size())
+        print("goals shape", batch['resampled_goals'].size())
+        print("compares", batch['observations'][0], batch['resampled_goals'][0])
+        print("compares", batch['observations'][10], batch['resampled_goals'][10])
+        print("compares", batch['observations'][100], batch['resampled_goals'][100])
+        print("compares", batch['observations'][1000], batch['resampled_goals'][1000])
+        print("compares", batch['observations'][34], batch['resampled_goals'][34])
+        '''
 
         has_images = 'images' in batch.keys()
 
@@ -116,8 +126,8 @@ class DDPGTrainer(TorchTrainer):
 
                 if has_images:
                     demo_images = demo_batch['images']
-                    cat_o =  torch.cat((images,obs), dim=1)
-                    cat_d =  torch.cat((demo_images, demo_obs), dim=1)
+                    cat_o =  torch.cat((images,obs[:,-6:]), dim=1)
+                    cat_d =  torch.cat((demo_images, demo_obs[:,-6:]), dim=1)
                     cat_combined = torch.cat((cat_o, cat_d), dim=0)
                     policy_actions, aux_output = self.policy(cat_combined)
 
@@ -155,8 +165,8 @@ class DDPGTrainer(TorchTrainer):
             next_obs = torch.cat((batch['next_observations'], demo_batch['next_observations']), dim=0)
 
             if has_images:
-                cat_next_o =  torch.cat((batch['next_images'], batch['next_observations']), dim=1)
-                cat_next_d =  torch.cat((demo_batch['next_images'], demo_batch['next_observations']), dim=1)
+                cat_next_o =  torch.cat((batch['next_images'], batch['next_observations'][:,-6:]), dim=1)
+                cat_next_d =  torch.cat((demo_batch['next_images'], demo_batch['next_observations'][:,-6:]), dim=1)
                 next_obs_combined = torch.cat((cat_next_o, cat_next_d), dim=0)
                 
 

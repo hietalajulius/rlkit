@@ -3,6 +3,8 @@ from collections import deque, OrderedDict
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.rollout_functions import rollout, multitask_rollout
 from rlkit.samplers.data_collector.base import PathCollector
+import os
+import glob
 
 
 class MdpPathCollector(PathCollector):
@@ -127,6 +129,9 @@ class GoalConditionedPathCollector(PathCollector):
             if len(paths) == 0 and evaluate:
                 image_capture = True
                 render_kwargs = {'mode': 'rgb_array'}
+                files = glob.glob('images/*')
+                for f in files:
+                    os.remove(f)
             else:
                 image_capture = False
                 render_kwargs = self._render_kwargs

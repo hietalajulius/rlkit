@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 import copy
+import os
+import glob
 
 
 def multitask_rollout(
@@ -39,7 +41,7 @@ def multitask_rollout(
         if env.pixels:
             i = o['image'].flatten() #THIS IS HERE ONLY TO GET COMPATIBLE NEXT ACTION
             o = o[observation_key]
-            new_obs = np.hstack((i, o, goal))
+            new_obs = np.hstack((i, goal))
         else:
             o = o[observation_key]
             new_obs = np.hstack((o,goal))

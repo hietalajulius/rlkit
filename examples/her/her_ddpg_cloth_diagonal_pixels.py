@@ -17,6 +17,7 @@ from generate.rlkit_diagonal_data_generation import make_demo_rollouts
 import argparse
 from rlkit.torch.conv_networks import CNNPolicy
 from torch import nn as nn
+import torch
 
 def argsparser():
     parser = argparse.ArgumentParser("Parser")
@@ -69,7 +70,7 @@ def experiment(variant, demo_paths=None):
         output_size=1,
         **variant['qf_kwargs']
     )
-    normalizer = TorchFixedNormalizer(obs_dim + goal_dim, eps=0.01, default_clip_range=5)
+    normalizer = TorchFixedNormalizer(variant['policy_kwargs']['added_fc_input_size'], eps=0.01, default_clip_range=5)
     policy = CNNPolicy(
         obs_normalizer=normalizer,
         output_size=action_dim,
@@ -117,6 +118,7 @@ def experiment(variant, demo_paths=None):
     )
     algorithm.to(ptu.device)
     algorithm.train()
+    return policy
 
 
 
@@ -130,7 +132,7 @@ if __name__ == "__main__":
         demo_file_name='/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz',
         algo_kwargs=dict(
             batch_size=1024,
-            num_epochs=100,
+            num_epochs=50,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=50,
             num_trains_per_train_loop=40,
@@ -168,7 +170,7 @@ if __name__ == "__main__":
             strides=[2,2,2,2],
             paddings=[0,0,0,0],
             hidden_sizes=[256,256,256,256],
-            added_fc_input_size=54,
+            added_fc_input_size=6,
             batch_norm_conv=False,
             batch_norm_fc=False,
             init_w=1e-4,
@@ -178,10 +180,11 @@ if __name__ == "__main__":
     ptu.set_gpu_mode(True)
     print("Training device", ptu.device)
     args = argsparser()
-    setup_logger('her-ddpg-diagonal-fixedloss2-freq40-pixels-sigma-0.1-run-'+ str(args.title) + str(args.run), variant=variant)
+    setup_logger('her-ddpg-diagonal-pixels-goalcond-run-'+ str(args.title) + str(args.run), variant=variant)
 
     if args.title == 'samedemos':
-        experiment(variant, demo_paths=None)
+        policy = experiment(variant, demo_paths=None)
     else:
         demo_paths = make_demo_rollouts(variant['env_name'], 100)
-        experiment(variant, demo_paths=demo_paths)
+        policy = experiment(variant, demo_paths=demo_paths)
+        torch.save(policy.state_dict(), str(args.run)+'tesmodel.mdl')
