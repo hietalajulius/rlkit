@@ -53,7 +53,7 @@ class DiagonalActor(object):
 
 
 
-def make_demo_rollouts(env_name, num_examples, env_type=None):
+def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
     env = gym.make(env_name)
     if env_type == 'sideways':
         actor = SidewaysActor()
@@ -75,7 +75,7 @@ def make_demo_rollouts(env_name, num_examples, env_type=None):
     while successes < num_examples:
         try_n += 1
         print("ITERATION NUMBER ", try_n, "Success so far", successes)
-        rollout = multitask_rollout(env,actor,max_path_length=50,observation_key='observation',desired_goal_key='desired_goal',return_dict_obs=True)
+        rollout = multitask_rollout(env,actor,render=render,max_path_length=50,observation_key='observation',desired_goal_key='desired_goal',return_dict_obs=True)
         success = np.any(np.array(rollout['rewards']) == 0)
         if success:
             successes += 1
@@ -87,9 +87,9 @@ def make_demo_rollouts(env_name, num_examples, env_type=None):
 
 if __name__ == "__main__":
 
-    env_name = 'ClothSidewaysStrict-v1'
+    env_name = 'ClothDiagonal-v1'
     num_examples = 100
-    rollouts = make_demo_rollouts(env_name,num_examples, env_type='sideways')
+    rollouts = make_demo_rollouts(env_name,num_examples, env_type='diagonal', render=True)
     file_name = "data_cloth_diagonal_rlkit"
     file_name += "_" + str(num_examples)
     file_name += "_" + env_name
