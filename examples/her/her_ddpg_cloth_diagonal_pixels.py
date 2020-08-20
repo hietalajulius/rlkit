@@ -13,7 +13,7 @@ from rlkit.exploration_strategies.gaussian_and_epsilon_strategy import GaussianA
 from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
-from generate.rlkit_diagonal_data_generation import make_demo_rollouts
+from generate.rlkit_data_generation import make_demo_rollouts
 import argparse
 from rlkit.torch.conv_networks import CNNPolicy
 from torch import nn as nn
@@ -128,7 +128,9 @@ if __name__ == "__main__":
     variant = dict(
         algorithm='HER-DDPG',
         version='normal',
+        num_demos=100,
         env_name='ClothDiagonalStrictPixels-v1',
+        env_type='diagonal',
         demo_file_name='/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz',
         algo_kwargs=dict(
             batch_size=1024,
@@ -181,10 +183,6 @@ if __name__ == "__main__":
     print("Training device", ptu.device)
     args = argsparser()
     setup_logger('her-ddpg-diagonal-pixels-goalcond-run-'+ str(args.title) + str(args.run), variant=variant)
-
-    if args.title == 'samedemos':
-        policy = experiment(variant, demo_paths=None)
-    else:
-        demo_paths = make_demo_rollouts(variant['env_name'], 100)
-        policy = experiment(variant, demo_paths=demo_paths)
-        torch.save(policy.state_dict(), str(args.run)+'tesmodel.mdl')
+    demo_paths = make_demo_rollouts(variant['env_name'], variant['num_demos'], variant['env_type'])
+    policy = experiment(variant, demo_paths=demo_paths)
+    torch.save(policy.state_dict(), str(args.run)+'tesmodel.mdl')

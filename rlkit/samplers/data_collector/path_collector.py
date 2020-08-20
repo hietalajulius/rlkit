@@ -126,6 +126,7 @@ class GoalConditionedPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
+            max_path_length_this_loop = max_path_length # Collect full paths even though more total steps than specified
             if len(paths) == 0 and evaluate:
                 image_capture = True
                 render_kwargs = {'mode': 'rgb_array'}

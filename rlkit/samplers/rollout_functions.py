@@ -50,7 +50,8 @@ def multitask_rollout(
 
         if image_capture:
             print("Image capture", path_length)
-            env.set_aux_positions(aux_ouput[:3], aux_ouput[3:6], aux_ouput[6:9], aux_ouput[9:12])
+            if aux_ouput:
+                env.set_aux_positions(aux_ouput[:3], aux_ouput[3:6], aux_ouput[6:9], aux_ouput[9:12])
             img = copy.deepcopy(env.render(**render_kwargs))
             #cv2.imshow('env', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
             #cv2.waitKey(1)

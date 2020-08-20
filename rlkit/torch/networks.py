@@ -109,7 +109,7 @@ class MlpPolicy(Mlp, Policy):
 
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])
-        return actions[0, :], {}
+        return actions[0, :], None,  {}
 
     def get_actions(self, obs):
         return eval_np(self, obs)
