@@ -9,19 +9,19 @@ class Actor(object):
     def get_action(self, obs, **kwargs):
         action = np.array([0.0, 0.0, 0.0])
         if self.current_action_idx < 12:
-            action[0] = 0.2
-            action[1] = 0.2
+            action[0] = -0.3
+            action[1] = 0.3
             action[2] = 0.45
         elif self.current_action_idx < 40:
-            action[0] = 0.2
+            action[0] = -0.2
             action[1] = 0.2
             action[2] = -0.2
         else:
             action[2] = -1
         self.current_action_idx += 1
-        action += np.random.normal(0, 0.1, 3)
+        #action += np.random.normal(0, 0.1, 3)
 
-        #action = np.array([-1.,1.,0.])
+        #action = np.array([0.,0.,0.])
         return action, np.random.normal(0, 0.1, 12), {}
     def reset(self):
         self.current_action_idx = 0
@@ -50,7 +50,7 @@ def make_demo_rollouts(env_name, num_examples,):
 
 if __name__ == "__main__":
 
-    env_name = 'ClothDiagonal-v1'
+    env_name = 'ClothDiagonalStrict-v1'
     num_examples = 100
     rollouts = make_demo_rollouts(env_name,num_examples)
     file_name = "data_cloth_diagonal_rlkit"
