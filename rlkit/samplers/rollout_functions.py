@@ -41,7 +41,9 @@ def multitask_rollout(
         if env.pixels:
             i = o['image'].flatten() #THIS IS HERE ONLY TO GET COMPATIBLE NEXT ACTION
             o = o[observation_key]
-            new_obs = np.hstack((i, goal))
+            robot_pos = o[24:27]
+            robot_vel = o[51:54]
+            new_obs = np.hstack((i, robot_pos, robot_vel, goal))
         else:
             o = o[observation_key]
             new_obs = np.hstack((o,goal))
@@ -50,7 +52,7 @@ def multitask_rollout(
 
         if image_capture:
             print("Image capture", path_length)
-            if aux_ouput:
+            if not aux_ouput is None:
                 env.set_aux_positions(aux_ouput[:3], aux_ouput[3:6], aux_ouput[6:9], aux_ouput[9:12])
             img = copy.deepcopy(env.render(**render_kwargs))
             #cv2.imshow('env', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))

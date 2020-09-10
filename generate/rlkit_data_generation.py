@@ -87,9 +87,9 @@ def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
 
 if __name__ == "__main__":
 
-    env_name = 'ClothDiagonal-v1'
+    env_name = 'ClothSidewaysStrictPixels-v1'
     num_examples = 100
-    rollouts = make_demo_rollouts(env_name,num_examples, env_type='diagonal', render=True)
+    rollouts = make_demo_rollouts(env_name,num_examples, env_type='sideways', render=False)
     file_name = "data_cloth_diagonal_rlkit"
     file_name += "_" + str(num_examples)
     file_name += "_" + env_name

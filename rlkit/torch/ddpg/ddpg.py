@@ -122,18 +122,23 @@ class DDPGTrainer(TorchTrainer):
             if not demo_batch == None:
                 demo_obs = demo_batch['observations']
                 demo_actions = demo_batch['actions']
+                robot_pos_obs = obs[:,24:27]
+                robot_vel_obs = obs[:,51:54]
+
+                robot_pos_demo = demo_obs[:,24:27]
+                robot_vel_demo = demo_obs[:,51:54]
                 cat_obs = torch.cat((obs, demo_obs), dim=0)
 
                 if has_images:
                     demo_images = demo_batch['images']
-                    cat_o =  torch.cat((images,obs[:,-6:]), dim=1)
-                    cat_d =  torch.cat((demo_images, demo_obs[:,-6:]), dim=1)
+                    cat_o =  torch.cat((images, robot_pos_obs, robot_vel_obs, obs[:,-6:]), dim=1)
+                    cat_d =  torch.cat((demo_images, robot_pos_demo, robot_vel_demo, demo_obs[:,-6:]), dim=1)
                     cat_combined = torch.cat((cat_o, cat_d), dim=0)
                     policy_actions, aux_output = self.policy(cat_combined)
 
                     off = torch.cat((cat_obs[:,:3], cat_obs[:,6:9], cat_obs[:,12:15], cat_obs[:,18:21]), dim=1) - aux_output
                     off_loss = (off**2).sum(dim=1).mean()
-                    print("off loss", off_loss)
+                    #print("off loss", off_loss)
                     demo_policy_actions, _ = self.policy(cat_d)
                 else:
                     policy_actions = self.policy(cat_obs)
@@ -165,8 +170,14 @@ class DDPGTrainer(TorchTrainer):
             next_obs = torch.cat((batch['next_observations'], demo_batch['next_observations']), dim=0)
 
             if has_images:
-                cat_next_o =  torch.cat((batch['next_images'], batch['next_observations'][:,-6:]), dim=1)
-                cat_next_d =  torch.cat((demo_batch['next_images'], demo_batch['next_observations'][:,-6:]), dim=1)
+                robot_pos_next_obs = batch['next_observations'][:,24:27]
+                robot_vel_next_obs = batch['next_observations'][:,51:54]
+
+                robot_pos_next_demo = demo_batch['next_observations'][:,24:27]
+                robot_vel_next_demo = demo_batch['next_observations'][:,51:54]
+
+                cat_next_o =  torch.cat((batch['next_images'], robot_pos_next_obs, robot_vel_next_obs, batch['next_observations'][:,-6:]), dim=1)
+                cat_next_d =  torch.cat((demo_batch['next_images'], robot_pos_next_demo, robot_vel_next_demo, demo_batch['next_observations'][:,-6:]), dim=1)
                 next_obs_combined = torch.cat((cat_next_o, cat_next_d), dim=0)
                 
 

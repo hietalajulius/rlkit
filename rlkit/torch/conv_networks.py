@@ -120,7 +120,7 @@ class CNN(nn.Module):
                             self.input_height,
                             self.input_width)
         #print("Batch image mean in fwd",h.shape, np.mean(h.cpu().numpy()))
-        #image = copy.deepcopy(h[0].numpy().reshape(84,84,3))
+        #image = copy.deepcopy(h[0].cpu().numpy().reshape(84,84,3))
         #cv2.imwrite('images/eating.png', cv2.cvtColor(image*255, cv2.COLOR_RGB2BGR))
         #cv2.imshow('env', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
         #cv2.waitKey(1)

@@ -33,6 +33,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             evaluation_data_collector: DataCollector,
             replay_buffer: ReplayBuffer,
             demo_buffer: ReplayBuffer = None,
+            demo_paths = None
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -42,10 +43,11 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.replay_buffer = replay_buffer
         self.demo_buffer = demo_buffer
         self._start_epoch = 0
+        self.demo_paths = demo_paths
 
         self.post_epoch_funcs = []
 
-        self.writer = SummaryWriter(log_dir='runs/'+logger._prefixes[0])
+        self.writer = SummaryWriter(log_dir='tblogs/'+logger._prefixes[0])
 
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
@@ -133,6 +135,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             eval_util.get_generic_path_information(eval_paths),
             prefix="evaluation/",
         )
+        if not self.demo_paths == None:
+            print("Logging demo path stats")
+            logger.record_dict(
+                eval_util.get_generic_path_information(self.demo_paths),
+                prefix="evaluation/demonstrations/",
+            )
 
         self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(eval_paths)['env_infos/final/is_success Mean'], epoch)
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():

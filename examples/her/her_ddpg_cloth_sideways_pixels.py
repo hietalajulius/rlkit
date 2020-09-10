@@ -114,6 +114,7 @@ def experiment(variant, demo_paths=None):
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
         demo_buffer=demo_buffer,
+        demo_paths=demo_paths[:10],
         **variant['algo_kwargs']
     )
     algorithm.to(ptu.device)
@@ -134,7 +135,7 @@ if __name__ == "__main__":
         demo_file_name='/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz',
         algo_kwargs=dict(
             batch_size=1024,
-            num_epochs=50,
+            num_epochs=150,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=50,
             num_trains_per_train_loop=40,
@@ -180,9 +181,9 @@ if __name__ == "__main__":
         ),
     )
     ptu.set_gpu_mode(True)
-    print("Training device", ptu.device)
     args = argsparser()
-    setup_logger('her-ddpg-diagonal-pixels-goalcond-run-'+ str(args.title) + str(args.run), variant=variant)
+    path = "final-sideways-pixels-"+str(args.title) + str(args.run)
+    setup_logger(path, variant=variant, log_dir='logs/'+ path)
     demo_paths = make_demo_rollouts(variant['env_name'], variant['num_demos'], variant['env_type'])
     policy = experiment(variant, demo_paths=demo_paths)
-    torch.save(policy.state_dict(), str(args.run)+'tesmodel.mdl')
+    torch.save(policy.state_dict(), path +'.mdl')
