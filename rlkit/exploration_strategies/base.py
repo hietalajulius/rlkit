@@ -18,8 +18,8 @@ class RawExplorationStrategy(ExplorationStrategy, metaclass=abc.ABCMeta):
         pass
 
     def get_action(self, t, policy, *args, **kwargs):
-        action, agent_info = policy.get_action(*args, **kwargs)
-        return self.get_action_from_raw_action(action, t=t), agent_info
+        action, aux_output, agent_info = policy.get_action(*args, **kwargs)
+        return self.get_action_from_raw_action(action, t=t), aux_output, agent_info
 
     def reset(self):
         pass

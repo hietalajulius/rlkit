@@ -75,6 +75,17 @@ class DDPGTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
 
     def train_from_torch(self, batch, demo_batch=None):
+        '''
+        print("batch keys", batch.keys())
+        print("obs shape", batch['observations'].size())
+        print("goals shape", batch['resampled_goals'].size())
+        print("compares", batch['observations'][0], batch['resampled_goals'][0])
+        print("compares", batch['observations'][10], batch['resampled_goals'][10])
+        print("compares", batch['observations'][100], batch['resampled_goals'][100])
+        print("compares", batch['observations'][1000], batch['resampled_goals'][1000])
+        print("compares", batch['observations'][34], batch['resampled_goals'][34])
+        '''
+
         has_images = 'images' in batch.keys()
 
         rewards = batch['rewards']
@@ -85,16 +96,6 @@ class DDPGTrainer(TorchTrainer):
 
         if has_images:
             images = batch['images']
-        
-        if not demo_batch == None:
-            demo_rewards = demo_batch['rewards']
-            demo_terminals = demo_batch['terminals']
-            demo_obs = demo_batch['observations']
-            demo_actions = demo_batch['actions']
-            demo_next_obs = demo_batch['next_observations']
-
-            if has_images:
-                demo_images = demo_batch['images']
 
         """
         Policy operations.
@@ -113,45 +114,82 @@ class DDPGTrainer(TorchTrainer):
                     pre_activation_policy_loss * self.policy_pre_activation_weight
             )
         else:
-            if has_images:
-                policy_actions = self.policy(torch.cat((images,obs[:,0:3],obs[:,12:15],obs[:,-3:]), dim=1))
-            else:
-                policy_actions = self.policy(obs)
-            q_output = self.qf(obs, policy_actions)
-            raw_policy_loss = policy_loss = - q_output.mean()
+            #if has_images:
+                #policy_actions = self.policy(torch.cat((images,obs[:,0:3],obs[:,12:15],obs[:,-3:]), dim=1))
+            #else:
+            
 
             if not demo_batch == None:
+                demo_obs = demo_batch['observations']
+                demo_actions = demo_batch['actions']
+                robot_pos_obs = obs[:,24:27]
+                robot_vel_obs = obs[:,51:54]
+
+                robot_pos_demo = demo_obs[:,24:27]
+                robot_vel_demo = demo_obs[:,51:54]
+                cat_obs = torch.cat((obs, demo_obs), dim=0)
+
                 if has_images:
-                    demo_policy_actions = self.policy(torch.cat((demo_images,demo_obs[:,0:3],demo_obs[:,12:15],demo_obs[:,-3:]), dim=1))
+                    demo_images = demo_batch['images']
+                    cat_o =  torch.cat((images, robot_pos_obs, robot_vel_obs, obs[:,-6:]), dim=1)
+                    cat_d =  torch.cat((demo_images, robot_pos_demo, robot_vel_demo, demo_obs[:,-6:]), dim=1)
+                    cat_combined = torch.cat((cat_o, cat_d), dim=0)
+                    policy_actions, aux_output = self.policy(cat_combined)
+
+                    off = torch.cat((cat_obs[:,:3], cat_obs[:,6:9], cat_obs[:,12:15], cat_obs[:,18:21]), dim=1) - aux_output
+                    off_loss = (off**2).sum(dim=1).mean()
+                    #print("off loss", off_loss)
+                    demo_policy_actions, _ = self.policy(cat_d)
                 else:
+                    policy_actions = self.policy(cat_obs)
                     demo_policy_actions = self.policy(demo_obs)
+
+                q_output = self.qf(cat_obs, policy_actions)
+
+                if has_images:
+                    raw_policy_loss = policy_loss = -0.001*q_output.mean() + 0.001*off_loss
+                else:
+                    raw_policy_loss = policy_loss = -0.001*q_output.mean()
+                
                 demo_policy_obs_q_output = self.qf(demo_obs, demo_policy_actions)
                 q_demo_output = self.qf(demo_obs, demo_actions)
-                mask = torch.flatten(q_demo_output > demo_policy_obs_q_output)
-                demo_policy_loss = -0.001 * demo_policy_obs_q_output.mean()
+                mask = torch.flatten(q_demo_output > demo_policy_obs_q_output).detach()
+
                 demo_bc_loss = 0.0078 * ((demo_policy_actions[mask] - demo_actions[mask])**2).sum(dim=1).mean()
-                policy_loss += demo_policy_loss
                 policy_loss += demo_bc_loss
+            else:
+                policy_actions = self.policy(obs)
+                q_output = self.qf(obs, policy_actions)
+                raw_policy_loss = policy_loss = - q_output.mean()
 
         if not demo_batch == None:
-            rewards = torch.cat((demo_batch['rewards'], batch['rewards']), dim=0)
-            terminals = torch.cat((demo_batch['terminals'], batch['terminals']), dim=0)
-            obs = torch.cat((demo_batch['observations'], batch['observations']), dim=0)
-            actions = torch.cat((demo_batch['actions'], batch['actions']), dim=0)
-            next_obs = torch.cat((demo_batch['next_observations'], batch['next_observations']), dim=0)
+            rewards = torch.cat((batch['rewards'], demo_batch['rewards']), dim=0)
+            terminals = torch.cat((batch['terminals'], demo_batch['terminals']), dim=0)
+            obs = torch.cat((batch['observations'], demo_batch['observations']), dim=0)
+            actions = torch.cat((batch['actions'], demo_batch['actions']), dim=0)
+            next_obs = torch.cat((batch['next_observations'], demo_batch['next_observations']), dim=0)
 
             if has_images:
-                next_images = torch.cat((demo_batch['next_images'], batch['next_images']), dim=0)
+                robot_pos_next_obs = batch['next_observations'][:,24:27]
+                robot_vel_next_obs = batch['next_observations'][:,51:54]
+
+                robot_pos_next_demo = demo_batch['next_observations'][:,24:27]
+                robot_vel_next_demo = demo_batch['next_observations'][:,51:54]
+
+                cat_next_o =  torch.cat((batch['next_images'], robot_pos_next_obs, robot_vel_next_obs, batch['next_observations'][:,-6:]), dim=1)
+                cat_next_d =  torch.cat((demo_batch['next_images'], robot_pos_next_demo, robot_vel_next_demo, demo_batch['next_observations'][:,-6:]), dim=1)
+                next_obs_combined = torch.cat((cat_next_o, cat_next_d), dim=0)
+                
 
         """
         Critic operations.
         """
         if has_images:
-            next_actions = self.target_policy(torch.cat((next_images,next_obs[:,0:3],next_obs[:,12:15],next_obs[:,-3:]), dim=1))
+            next_actions, _ = self.target_policy(next_obs_combined)
         else:
             next_actions = self.target_policy(next_obs)
         # speed up computation by not backpropping these gradients
-        next_actions.detach()
+        next_actions.detach() # Needed for action-value function of next obs...
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
@@ -198,6 +236,10 @@ class DDPGTrainer(TorchTrainer):
             self.eval_statistics['Raw Policy Loss'] = np.mean(ptu.get_numpy(
                 raw_policy_loss
             ))
+            if has_images:
+                self.eval_statistics['State estimation loss'] = np.mean(ptu.get_numpy(
+                    off_loss
+                ))
             self.eval_statistics['Preactivation Policy Loss'] = (
                     self.eval_statistics['Policy Loss'] -
                     self.eval_statistics['Raw Policy Loss']

@@ -1,4 +1,8 @@
 import numpy as np
+import cv2
+import copy
+import os
+import glob
 
 
 def multitask_rollout(
@@ -11,6 +15,7 @@ def multitask_rollout(
         desired_goal_key=None,
         get_action_kwargs=None,
         return_dict_obs=False,
+        image_capture=False
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -28,19 +33,35 @@ def multitask_rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
-    if render:
+    if render or image_capture:
         env.render(**render_kwargs)
     goal = o[desired_goal_key]
     while path_length < max_path_length:
         dict_obs.append(o)
-        if observation_key:
-            i = o['image'].flatten()
+        if env.pixels:
+            i = o['image'].flatten() #THIS IS HERE ONLY TO GET COMPATIBLE NEXT ACTION
             o = o[observation_key]
-        new_obs = np.hstack((i, o[0:3], o[12:15], goal))
-        a, agent_info = agent.get_action(new_obs, **get_action_kwargs)
+            robot_pos = o[24:27]
+            robot_vel = o[51:54]
+            new_obs = np.hstack((i, robot_pos, robot_vel, goal))
+        else:
+            o = o[observation_key]
+            new_obs = np.hstack((o,goal))
+        a, aux_ouput, agent_info = agent.get_action(new_obs, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
-        if render:
+
+        if image_capture:
+            print("Image capture", path_length)
+            if not aux_ouput is None:
+                env.set_aux_positions(aux_ouput[:3], aux_ouput[3:6], aux_ouput[6:9], aux_ouput[9:12])
+            img = copy.deepcopy(env.render(**render_kwargs))
+            #cv2.imshow('env', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+            #cv2.waitKey(1)
+            cv2.imwrite('images/'+str(path_length)+'.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+            env.clear_aux_positions()
+        elif render:
             env.render(**render_kwargs)
+            
         observations.append(o)
         rewards.append(r)
         terminals.append(d)

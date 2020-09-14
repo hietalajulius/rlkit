@@ -3,6 +3,8 @@ from collections import deque, OrderedDict
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.rollout_functions import rollout, multitask_rollout
 from rlkit.samplers.data_collector.base import PathCollector
+import os
+import glob
 
 
 class MdpPathCollector(PathCollector):
@@ -114,7 +116,8 @@ class GoalConditionedPathCollector(PathCollector):
             max_path_length,
             num_steps,
             discard_incomplete_paths,
-            render=False
+            render=False,
+            evaluate=False
     ):
         paths = []
         num_steps_collected = 0
@@ -123,15 +126,27 @@ class GoalConditionedPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
+            max_path_length_this_loop = max_path_length # Collect full paths even though more total steps than specified
+            if len(paths) == 0 and evaluate:
+                image_capture = True
+                render_kwargs = {'mode': 'rgb_array'}
+                files = glob.glob('images/*')
+                for f in files:
+                    os.remove(f)
+            else:
+                image_capture = False
+                render_kwargs = self._render_kwargs
+
             path = multitask_rollout(
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
                 render=render,
-                render_kwargs=self._render_kwargs,
+                render_kwargs=render_kwargs,
                 observation_key=self._observation_key,
                 desired_goal_key=self._desired_goal_key,
                 return_dict_obs=True,
+                image_capture=image_capture
             )
             path_len = len(path['actions'])
             if (

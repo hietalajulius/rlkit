@@ -15,6 +15,8 @@ from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrate
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
 from generate.rlkit_data_generation import make_demo_rollouts
 import argparse
+from rlkit.torch.conv_networks import CNNPolicy
+from torch import nn as nn
 import torch
 
 def argsparser():
@@ -68,11 +70,13 @@ def experiment(variant, demo_paths=None):
         output_size=1,
         **variant['qf_kwargs']
     )
-    normalizer = TorchFixedNormalizer(obs_dim + goal_dim, eps=0.01, default_clip_range=5)
-    policy = TanhMlpPolicy(
-        input_size=obs_dim + goal_dim,
+    normalizer = TorchFixedNormalizer(variant['policy_kwargs']['added_fc_input_size'], eps=0.01, default_clip_range=5)
+    policy = CNNPolicy(
         obs_normalizer=normalizer,
         output_size=action_dim,
+        hidden_init=nn.init.xavier_uniform_,
+        hidden_activation=nn.ReLU(),
+        output_activation=nn.Tanh(),
         **variant['policy_kwargs']
     )
     target_qf = copy.deepcopy(qf)
@@ -124,13 +128,14 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algorithm='HER-DDPG',
-        num_demos=100,
         version='normal',
-        env_name='ClothSidewaysStrict-v1',
+        num_demos=100,
+        env_name='ClothSidewaysStrictPixels-v1',
         env_type='sideways',
+        demo_file_name='/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz',
         algo_kwargs=dict(
             batch_size=1024,
-            num_epochs=100,
+            num_epochs=150,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=50,
             num_trains_per_train_loop=40,
@@ -147,22 +152,37 @@ if __name__ == "__main__":
             policy_learning_rate=1e-3,
         ),
         replay_buffer_kwargs=dict(
-            max_size=int(1E6),
+            max_size=int(5E5),
             fraction_goals_rollout_goals=0.2,  # equal to k = 4 in HER paper
             fraction_goals_env_goals=0,
+            internal_keys=['image']
         ),
         demo_buffer_kwargs=dict(
             max_size=int(100),
+            internal_keys=['image']
         ),
         qf_kwargs=dict(
             hidden_sizes=[256, 256, 256],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[256, 256, 256],
+            input_width=84,
+            input_height=84,
+            input_channels=3,
+            kernel_sizes=[3,3,3,3],
+            n_channels=[32,32,32,32],
+            strides=[2,2,2,2],
+            paddings=[0,0,0,0],
+            hidden_sizes=[256,256,256,256],
+            added_fc_input_size=6,
+            batch_norm_conv=False,
+            batch_norm_fc=False,
+            init_w=1e-4,
+            aux_output_size=12
         ),
     )
+    ptu.set_gpu_mode(True)
     args = argsparser()
-    path = "final-sideways-"+str(args.title) + str(args.run)
+    path = "final-sideways-pixels-"+str(args.title) + str(args.run)
     setup_logger(path, variant=variant, log_dir='logs/'+ path)
     demo_paths = make_demo_rollouts(variant['env_name'], variant['num_demos'], variant['env_type'])
     policy = experiment(variant, demo_paths=demo_paths)

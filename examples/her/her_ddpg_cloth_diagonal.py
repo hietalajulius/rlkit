@@ -13,11 +13,21 @@ from rlkit.exploration_strategies.gaussian_and_epsilon_strategy import GaussianA
 from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+from generate.rlkit_data_generation import make_demo_rollouts
+import argparse
+import torch
+
+def argsparser():
+    parser = argparse.ArgumentParser("Parser")
+    parser.add_argument('--run', help='run ID')
+    parser.add_argument('--title', help='run title')
+    return parser.parse_args()
 
 
-def experiment(variant):
-    eval_env = gym.make('ClothReach-v1').env
-    expl_env = gym.make('ClothReach-v1').env
+
+def experiment(variant, demo_paths=None):
+    eval_env = gym.make(variant['env_name']).env
+    expl_env = gym.make(variant['env_name']).env
 
     observation_key = 'observation'
     desired_goal_key = 'desired_goal'
@@ -38,15 +48,19 @@ def experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['demo_buffer_kwargs']
     )
-    demo_buffer.add_paths_from_file('/Users/juliushietala/Desktop/Robotics/baselines/baselines/her/experiment/data_generation/data_cloth_diagonal_rlkit_100.npz')
+
+    if demo_paths is None:
+        demo_buffer.add_paths_from_file(variant['demo_file_name'])
+    else:
+        demo_buffer.add_paths(demo_paths)
 
     obs_dim = eval_env.observation_space.spaces['observation'].low.size
     action_dim = eval_env.action_space.low.size
     goal_dim = eval_env.observation_space.spaces['desired_goal'].low.size
     es = GaussianAndEpislonStrategy(
         action_space=expl_env.action_space,
-        max_sigma=.2,
-        min_sigma=.2,  # constant sigma
+        max_sigma=.1,
+        min_sigma=.1,  # constant sigma
         epsilon=.1,
     )
     qf = FlattenMlp(
@@ -96,17 +110,13 @@ def experiment(variant):
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
         demo_buffer=demo_buffer,
+        demo_paths=demo_paths[:10],
         **variant['algo_kwargs']
     )
     algorithm.to(ptu.device)
     algorithm.train()
+    return policy
 
-    eval_path_collector.collect_new_paths(
-            50,
-            1000,
-            discard_incomplete_paths=True,
-            render=True
-        )
 
 
 
@@ -114,10 +124,13 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algorithm='HER-DDPG',
+        num_demos=100,
         version='normal',
+        env_name='ClothDiagonalStrict-v1',
+        env_type='diagonal',
         algo_kwargs=dict(
             batch_size=1024,
-            num_epochs=20,
+            num_epochs=100,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=50,
             num_trains_per_train_loop=40,
@@ -148,5 +161,9 @@ if __name__ == "__main__":
             hidden_sizes=[256, 256, 256],
         ),
     )
-    setup_logger('her-ddpg-diagonal-full-demos', variant=variant)
-    experiment(variant)
+    args = argsparser()
+    path = "final-diagonal-"+str(args.title) + str(args.run)
+    setup_logger(path, variant=variant, log_dir='logs/'+ path)
+    demo_paths = make_demo_rollouts(variant['env_name'], variant['num_demos'], variant['env_type'])
+    policy = experiment(variant, demo_paths=demo_paths)
+    torch.save(policy.state_dict(), path +'.mdl')

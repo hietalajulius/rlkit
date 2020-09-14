@@ -23,7 +23,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_trains_per_train_loop,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
-            demo_buffer: ReplayBuffer = None
+            demo_buffer: ReplayBuffer = None,
+            demo_paths = None,
     ):
         super().__init__(
             trainer,
@@ -32,7 +33,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             exploration_data_collector,
             evaluation_data_collector,
             replay_buffer,
-            demo_buffer
+            demo_buffer,
+            demo_paths
         )
         self.batch_size = batch_size
         self.max_path_length = max_path_length
@@ -56,12 +58,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
-        ):
+        ):  
+            print("Evaluation sampling")
             self.eval_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_eval_steps_per_epoch,
                 discard_incomplete_paths=True,
+                evaluate=True
             )
+            print("Evaluation done")
             gt.stamp('evaluation sampling')
             print("Epoch", epoch)
 
