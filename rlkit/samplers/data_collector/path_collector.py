@@ -6,6 +6,8 @@ import numpy as np
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.data_collector.base import PathCollector
 from rlkit.samplers.rollout_functions import rollout
+import glob
+import os
 
 
 class MdpPathCollector(PathCollector):
@@ -42,7 +44,16 @@ class MdpPathCollector(PathCollector):
     ):
         paths = []
         num_steps_collected = 0
+        image_capture = False
         while num_steps_collected < num_steps:
+            if num_steps_collected == 0 and self._render:
+                print("Image capture")
+                files = glob.glob('images/*')
+                for f in files:
+                    os.remove(f)
+                image_capture = True
+            else:
+                image_capture = False
             max_path_length_this_loop = min(  # Do not go over num_steps
                 max_path_length,
                 num_steps - num_steps_collected,
@@ -52,6 +63,7 @@ class MdpPathCollector(PathCollector):
                 self._policy,
                 max_path_length=max_path_length_this_loop,
                 render=self._render,
+                image_capture=image_capture,
                 render_kwargs=self._render_kwargs,
             )
             path_len = len(path['actions'])

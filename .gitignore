@@ -13,3 +13,5 @@ data
 runs
 examples/her/.ipynb_checkpoints
 examples/her/images
+examples/her/logs
+examples/her/tblogs

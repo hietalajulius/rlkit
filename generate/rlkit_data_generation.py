@@ -35,21 +35,17 @@ class DiagonalActor(object):
         self.current_action_idx = 0
     def get_action(self, obs, **kwargs):
         action = np.array([0.0, 0.0, 0.0, 0.0])
-        if self.current_action_idx < 2:
-            action[2] = 0.1
-        elif self.current_action_idx < 5:
-            action[1] = -0.8
-            action[0] = 0.8
+        if self.current_action_idx < 3:
+            action[0] = -0.2
+            action[1] = 0.2
+            action[3] = 1
+            
         elif self.current_action_idx < 30:
             action[0] = -0.2
             action[1] = 0.2
             action[2] = 0.2
             action[3] = 1
-        else:
-            action[0] = -0.2
-            action[1] = 0.2
-            action[2] = -0.2
-            action[3] = 1
+
 
         
         self.current_action_idx += 1

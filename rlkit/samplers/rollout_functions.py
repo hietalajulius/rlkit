@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 import copy
+import cv2
 
 create_rollout_function = partial
 
@@ -73,6 +74,7 @@ def rollout(
         agent,
         max_path_length=np.inf,
         render=False,
+        image_capture=False,
         render_kwargs=None,
         preprocess_obs_for_policy_fn=None,
         get_action_kwargs=None,
@@ -113,6 +115,9 @@ def rollout(
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
         if render:
             env.render(**render_kwargs)
+            if image_capture:
+                img = copy.deepcopy(env.render(**render_kwargs))
+                cv2.imwrite('images/'+str(path_length)+'.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
             
         observations.append(o)
         rewards.append(r)
