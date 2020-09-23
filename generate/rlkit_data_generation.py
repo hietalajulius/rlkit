@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 from rlkit.samplers.rollout_functions import multitask_rollout
-#from rlkit.generate.sideways_trajectory import items2
+from sideways_trajectory import items2
 #from generate.actor import Actor
 from pynput import mouse
 import copy
@@ -15,6 +15,7 @@ class SidewaysActor(object):
         ac = np.array([0.0,0.0,0.0,1.0])
         if self.current_action_idx < len(self.items):
             action = copy.deepcopy(self.items[self.current_action_idx])
+            action.append(1)
             action[0] *= 0.75
             action[1] *= 0.8
             action[2] *= 4
@@ -24,7 +25,7 @@ class SidewaysActor(object):
             ac[2] = -0.5
 
         self.current_action_idx += 1
-        ac += np.random.normal(0, 0.1, 4)
+        #ac += np.random.normal(0, 0.1, 4)
         return ac, {} #np.random.normal(0, 0.1, 12), {}
     def reset(self):
         self.current_action_idx = 0
@@ -35,7 +36,7 @@ class DiagonalActor(object):
         self.current_action_idx = 0
     def get_action(self, obs, **kwargs):
         action = np.array([0.0, 0.0, 0.0, 0.0])
-        if self.current_action_idx < 3:
+        if self.current_action_idx < 5:
             action[0] = -0.2
             action[1] = 0.2
             action[3] = 1
@@ -91,10 +92,10 @@ def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
 
 if __name__ == "__main__":
 
-    env_name = 'ClothDiagonal-v1'
+    env_name = 'ClothSidewaysStrict-v1'
     num_examples = 100
-    rollouts = make_demo_rollouts(env_name,num_examples, env_type='diagonal', render=True)
-    file_name = "data_cloth_diagonal_rlkit"
+    rollouts = make_demo_rollouts(env_name,num_examples, env_type='sideways', render=True)
+    file_name = "rlkit_demo_data"
     file_name += "_" + str(num_examples)
     file_name += "_" + env_name
     file_name += ".npz"
