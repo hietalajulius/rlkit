@@ -1,8 +1,7 @@
 import numpy as np
 import gym
 from rlkit.samplers.rollout_functions import multitask_rollout
-from sideways_trajectory import items2
-#from generate.actor import Actor
+from generate.sideways_trajectory import items2
 from pynput import mouse
 import copy
 
@@ -12,10 +11,10 @@ class SidewaysActor(object):
         self.current_action_idx = 0
 
     def get_action(self, obs, **kwargs):
-        ac = np.array([0.0,0.0,0.0,1.0])
+        ac = np.array([0.0,0.0,0.0])
         if self.current_action_idx < len(self.items):
             action = copy.deepcopy(self.items[self.current_action_idx])
-            action.append(1)
+            #action.append(1)
             action[0] *= 0.75
             action[1] *= 0.8
             action[2] *= 4
@@ -25,7 +24,7 @@ class SidewaysActor(object):
             ac[2] = -0.5
 
         self.current_action_idx += 1
-        #ac += np.random.normal(0, 0.1, 4)
+        ac += np.random.normal(0, 0.1, 3)
         return ac, {} #np.random.normal(0, 0.1, 12), {}
     def reset(self):
         self.current_action_idx = 0
@@ -80,7 +79,6 @@ def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
         try_n += 1
         print("ITERATION NUMBER ", try_n, "Success so far", successes)
         rollout = multitask_rollout(env,actor,render=render,max_path_length=50,observation_key='observation',desired_goal_key='desired_goal',return_dict_obs=True)
-        print("rollut len f", len(rollout['rewards']))
         success = np.any(np.array(rollout['rewards']) == 0)
         if success:
             successes += 1
