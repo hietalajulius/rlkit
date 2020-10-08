@@ -1,3 +1,6 @@
+# Copyright 2020 (c) Aalto University - All Rights Reserved
+# Author: Julius Hietala <julius.hietala@aalto.fi>
+#
 import numpy as np
 import gym
 from rlkit.samplers.rollout_functions import multitask_rollout
@@ -34,20 +37,20 @@ class DiagonalActor(object):
     def __init__(self):
         self.current_action_idx = 0
     def get_action(self, obs, **kwargs):
-        action = np.array([0.0, 0.0, 0.0, 0.0])
+        action = np.array([0.0, 0.0, 0.0])
         if self.current_action_idx < 5:
             action[0] = -0.2
             action[1] = 0.2
-            action[3] = 1
+            #action[3] = 1
             
         elif self.current_action_idx < 30:
             action[0] = -0.2
             action[1] = 0.2
             action[2] = 0.2
-            action[3] = 1
+            #action[3] = 1
 
 
-        
+        #action = np.array([0.0, 0.0, 10.0])
         self.current_action_idx += 1
         #action += np.random.normal(0, 0.1, 4)
         return action, {} #np.random.normal(0, 0.1, 12), {}
@@ -90,9 +93,9 @@ def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
 
 if __name__ == "__main__":
 
-    env_name = 'ClothSidewaysStrict-v1'
+    env_name = 'ClothDiagonalStrict-v1'
     num_examples = 100
-    rollouts = make_demo_rollouts(env_name,num_examples, env_type='sideways', render=True)
+    rollouts = make_demo_rollouts(env_name,num_examples, env_type='diagonal', render=False)
     file_name = "rlkit_demo_data"
     file_name += "_" + str(num_examples)
     file_name += "_" + env_name
