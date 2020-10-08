@@ -6,6 +6,7 @@ from rlkit.policies.base import Policy
 from rlkit.pythonplusplus import identity
 from rlkit.torch.core import PyTorchModule, eval_np
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+import cv2
 
 
 from rlkit.torch.pytorch_util import activation_from_string
@@ -145,6 +146,10 @@ class CNN(PyTorchModule):
                             self.input_channels,
                             self.input_height,
                             self.input_width)
+
+        #image = h.reshape((84, 84, 3)).numpy().copy()
+        #cv2.imshow('goal', image)
+        #cv2.waitKey(10)
 
         h = self.apply_forward_conv(h)
 
