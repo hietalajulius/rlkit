@@ -27,7 +27,7 @@ class SidewaysActor(object):
             ac[2] = -0.5
 
         self.current_action_idx += 1
-        ac += np.random.normal(0, 0.1, 3)
+        #ac += np.random.normal(0, 0.1, 3)
         return ac, {} #np.random.normal(0, 0.1, 12), {}
     def reset(self):
         self.current_action_idx = 0
@@ -43,11 +43,13 @@ class DiagonalActor(object):
             action[1] = 0.2
             #action[3] = 1
             
-        elif self.current_action_idx < 30:
+        elif self.current_action_idx < 35:
             action[0] = -0.2
             action[1] = 0.2
             action[2] = 0.2
             #action[3] = 1
+        else:
+            action[2] = -0.2
 
 
         #action = np.array([0.0, 0.0, 10.0])
@@ -81,7 +83,7 @@ def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
     while successes < num_examples:
         try_n += 1
         print("ITERATION NUMBER ", try_n, "Success so far", successes)
-        rollout = multitask_rollout(env,actor,render=render,max_path_length=50,observation_key='observation',desired_goal_key='desired_goal',return_dict_obs=True)
+        rollout = multitask_rollout(env,actor,render=render,max_path_length=100,observation_key='observation',desired_goal_key='desired_goal',return_dict_obs=True)
         success = np.any(np.array(rollout['rewards']) == 0)
         if success:
             successes += 1
@@ -95,7 +97,7 @@ if __name__ == "__main__":
 
     env_name = 'ClothDiagonalStrict-v1'
     num_examples = 100
-    rollouts = make_demo_rollouts(env_name,num_examples, env_type='diagonal', render=False)
+    rollouts = make_demo_rollouts(env_name,num_examples, env_type='diagonal', render=True)
     file_name = "rlkit_demo_data"
     file_name += "_" + str(num_examples)
     file_name += "_" + env_name

@@ -146,14 +146,22 @@ class SACTrainer(TorchTrainer, LossFunction):
     ) -> Tuple[SACLosses, LossStatistics]:
         rewards = batch['rewards']
         terminals = batch['terminals']
-        obs = batch['observations']
         actions = batch['actions']
-        next_obs = batch['next_observations']
 
+        if 'images' in batch.keys():
+            policy_obs = torch.cat((batch['images'], batch['observations'][:,-12:]), dim=1)
+            policy_next_obs = torch.cat((batch['next_images'], batch['next_observations'][:,-12:]), dim=1)
+            value_obs = batch['observations']
+            value_next_obs = batch['next_observations']
+        else:
+            policy_obs = batch['observations']
+            policy_next_obs = batch['next_observations']
+            value_obs = batch['observations']
+            value_next_obs = batch['next_observations']
         """
         Policy and Alpha Loss
         """
-        dist = self.policy(obs)
+        dist = self.policy(policy_obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
         log_pi = log_pi.unsqueeze(-1)
         if self.use_automatic_entropy_tuning:
@@ -164,22 +172,22 @@ class SACTrainer(TorchTrainer, LossFunction):
             alpha = 1
 
         q_new_actions = torch.min(
-            self.qf1(obs, new_obs_actions),
-            self.qf2(obs, new_obs_actions),
+            self.qf1(value_obs, new_obs_actions),
+            self.qf2(value_obs, new_obs_actions),
         )
         policy_loss = (alpha*log_pi - q_new_actions).mean()
 
         """
         QF Loss
         """
-        q1_pred = self.qf1(obs, actions)
-        q2_pred = self.qf2(obs, actions)
-        next_dist = self.policy(next_obs)
+        q1_pred = self.qf1(value_obs, actions)
+        q2_pred = self.qf2(value_obs, actions)
+        next_dist = self.policy(policy_next_obs)
         new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
         new_log_pi = new_log_pi.unsqueeze(-1)
         target_q_values = torch.min(
-            self.target_qf1(next_obs, new_next_actions),
-            self.target_qf2(next_obs, new_next_actions),
+            self.target_qf1(value_next_obs, new_next_actions),
+            self.target_qf2(value_next_obs, new_next_actions),
         ) - alpha * new_log_pi
 
         q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
