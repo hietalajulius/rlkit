@@ -143,8 +143,7 @@ class KeyPathCollector(MdpPathCollector):
         snapshot = super().get_snapshot()
         snapshot.update(
             observation_key=self._observation_key,
-            desired_goal_key=self._desired_goal_key,
-            **self._additional_keys
+            desired_goal_key=self._desired_goal_key
         )
         return snapshot
 
