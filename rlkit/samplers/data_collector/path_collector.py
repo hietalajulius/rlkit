@@ -107,6 +107,49 @@ class MdpPathCollector(PathCollector):
             snapshot_dict['env'] = self._env
         return snapshot_dict
 
+class KeyPathCollector(MdpPathCollector):
+    def __init__(
+            self,
+            *args,
+            observation_key='observation',
+            desired_goal_key='desired_goal',
+            additional_keys=[],
+            goal_sampling_mode=None,
+            **kwargs
+    ):
+        def obs_processor(o):
+            obs = o[observation_key]
+            for key in additional_keys:
+                obs = np.hstack((obs, o[key]))
+            obs = np.hstack((obs, o[desired_goal_key]))
+            return obs
+
+        rollout_fn = partial(
+            rollout,
+            preprocess_obs_for_policy_fn=obs_processor,
+        )
+        super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
+        self._observation_key = observation_key
+        self._desired_goal_key = desired_goal_key
+        self._additional_keys = additional_keys
+        self._goal_sampling_mode = goal_sampling_mode
+
+
+    def collect_new_paths(self, *args, **kwargs):
+        self._env.goal_sampling_mode = self._goal_sampling_mode
+        return super().collect_new_paths(*args, **kwargs)
+
+    def get_snapshot(self):
+        snapshot = super().get_snapshot()
+        snapshot.update(
+            observation_key=self._observation_key,
+            desired_goal_key=self._desired_goal_key,
+            **self._additional_keys
+        )
+        return snapshot
+
+
+
 
 class GoalConditionedPathCollector(MdpPathCollector):
     def __init__(

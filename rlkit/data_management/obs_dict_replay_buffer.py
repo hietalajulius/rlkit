@@ -274,6 +274,12 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         if 'image' in self.internal_keys:
             batch['images'] = new_obs_dict['image']
             batch['next_images'] = new_next_obs_dict['image']
+        if 'robot_observation' in self.internal_keys:
+            batch['robot_observations'] = new_obs_dict['robot_observation']
+            batch['next_robot_observations'] = new_next_obs_dict['robot_observation']
+        if 'model_params' in self.internal_keys:
+            batch['model_params'] = new_obs_dict['model_params']
+
         return batch
 
     def _batch_obs_dict(self, indices):

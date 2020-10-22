@@ -61,8 +61,8 @@ class DiagonalActor(object):
 
 
 
-def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
-    env = gym.make(env_name)
+def make_demo_rollouts(env_name, num_examples, env_type=None, render=False, **env_kwargs):
+    env = gym.make(env_name, **env_kwargs)
     if env_type == 'sideways':
         actor = SidewaysActor()
     else:
@@ -95,9 +95,20 @@ def make_demo_rollouts(env_name, num_examples, env_type=None, render=False):
 
 if __name__ == "__main__":
 
-    env_name = 'ClothDiagonalStrict-v1'
+    env_name = 'Cloth-v1'
+    env_kwargs = dict(
+        learn_grasp = False,
+        n_actions=3,
+        task="sideways",
+        pixels=False,
+        strict=True,
+        distance_threshold=0.05,
+        randomize_params=True,
+        uniform_jnt_tend=True,
+
+    )
     num_examples = 100
-    rollouts = make_demo_rollouts(env_name,num_examples, env_type='diagonal', render=True)
+    rollouts = make_demo_rollouts(env_name, num_examples, "sideways", True, **env_kwargs)
     file_name = "rlkit_demo_data"
     file_name += "_" + str(num_examples)
     file_name += "_" + env_name

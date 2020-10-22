@@ -148,14 +148,14 @@ class SACTrainer(TorchTrainer, LossFunction):
         terminals = batch['terminals']
         actions = batch['actions']
 
-        if 'images' in batch.keys():
-            policy_obs = torch.cat((batch['images'], batch['observations'][:,-12:]), dim=1)
-            policy_next_obs = torch.cat((batch['next_images'], batch['next_observations'][:,-12:]), dim=1)
-            value_obs = batch['observations']
-            value_next_obs = batch['next_observations']
+        if 'policy_obs' in batch.keys():
+            policy_obs = batch['policy_obs']
+            policy_next_obs = batch['policy_next_obs']
+            value_obs = batch['value_obs']
+            value_next_obs = batch['value_next_obs']
         else:
             policy_obs = batch['observations']
-            policy_next_obs = batch['next_observations']
+            policy_next_obs = batch['observations']
             value_obs = batch['observations']
             value_next_obs = batch['next_observations']
         """
