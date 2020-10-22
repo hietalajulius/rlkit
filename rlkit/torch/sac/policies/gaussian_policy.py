@@ -483,7 +483,7 @@ class TanhCNNGaussianPolicy(CNN, TorchStochasticPolicy):
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
     def forward(self, obs):
-        h = super().forward(obs, return_last_activations=True)
+        h, h_aux = super().forward(obs, return_last_activations=True)
 
         mean = self.last_fc(h)
         if self.std is None:

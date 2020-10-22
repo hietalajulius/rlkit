@@ -37,6 +37,7 @@ class CNN(PyTorchModule):
             pool_sizes=None,
             pool_strides=None,
             pool_paddings=None,
+            aux_output_size=1
     ):
         if hidden_sizes is None:
             hidden_sizes = []
@@ -64,6 +65,10 @@ class CNN(PyTorchModule):
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
         self.output_conv_channels = output_conv_channels
         self.pool_type = pool_type
+
+        self.aux_output_size = aux_output_size
+
+        self.aux_weight = nn.Parameter(torch.ones(self.aux_output_size), requires_grad=True)
 
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
@@ -120,7 +125,11 @@ class CNN(PyTorchModule):
             # used only for injecting input directly into fc layers
             fc_input_size += added_fc_input_size
             for idx, hidden_size in enumerate(hidden_sizes):
-                fc_layer = nn.Linear(fc_input_size, hidden_size)
+                if idx == 1:
+                    fc_layer = nn.Linear(fc_input_size, hidden_size+self.aux_output_size)
+                else:
+                    fc_layer = nn.Linear(fc_input_size, hidden_size)
+
                 fc_input_size = hidden_size
 
                 fc_layer.weight.data.uniform_(-init_w, init_w)
@@ -165,11 +174,16 @@ class CNN(PyTorchModule):
                 dim=1,
             )
             h = torch.cat((h, extra_fc_input), dim=1)
-        h = self.apply_forward_fc(h)
+        h, h_aux = self.apply_forward_fc(h)
+        
+        #print("last hidden", h.shape, h_aux.shape)
+        #print("aux output", h2)
+
+        h_aux = h_aux * self.aux_weight
 
         if return_last_activations:
-            return h
-        return self.output_activation(self.last_fc(h))
+            return h, h_aux
+        return self.output_activation(self.last_fc(h)), h_aux
 
     def apply_forward_conv(self, h):
         for i, layer in enumerate(self.conv_layers):
@@ -183,11 +197,15 @@ class CNN(PyTorchModule):
 
     def apply_forward_fc(self, h):
         for i, layer in enumerate(self.fc_layers):
+            if i == 2:
+                h_aux = h[:,-self.aux_output_size:]
+                h = h[:,:-self.aux_output_size:]
+
             h = layer(h)
             if self.fc_normalization_type != 'none':
                 h = self.fc_norm_layers[i](h)
             h = self.hidden_activation(h)
-        return h
+        return h, h_aux
 
 
 class ConcatCNN(CNN):
