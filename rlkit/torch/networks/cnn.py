@@ -156,7 +156,7 @@ class CNN(PyTorchModule):
                             self.input_height,
                             self.input_width)
 
-        #image = h.reshape((84, 84, 3)).numpy().copy()
+        #image = h.reshape((140, 140, 1)).cpu().numpy().copy()
         #cv2.imshow('goal', image)
         #cv2.waitKey(10)
 
