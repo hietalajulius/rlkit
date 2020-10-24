@@ -107,7 +107,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         self.trainer.train(train_data)
                 #print("Trained for", tren + 1, "times")
                 tra_time = time.time() - start_train
-                print("Took to train:", col_time)
+                print("Took to train:", tra_time)
                 train_times += tra_time
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
