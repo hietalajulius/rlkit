@@ -4,6 +4,7 @@ import gtimer as gt
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
+import time
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -68,14 +69,17 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             print("Evaluation done")
             gt.stamp('evaluation sampling')
             print("Epoch", epoch)
-
+            
             for cycle in range(self.num_train_loops_per_epoch):
+                start = time.time()
                 print("\n Cycle", cycle, epoch)
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
                     self.num_expl_steps_per_train_loop,
                     discard_incomplete_paths=False,
                 )
+                mid1 = time.time()
+                print("Collection took:", mid1-start)
                 gt.stamp('exploration sampling', unique=False)
                 for path in new_expl_paths:
                     print("Added episode", len(path['observations']))
@@ -83,7 +87,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.replay_buffer.add_paths(new_expl_paths)
                 print("Replay buf", self.replay_buffer._size)
                 gt.stamp('data storing', unique=False)
-
+                mid2 = time.time()
+                print("Adding paths took:", mid2-mid1)
                 self.training_mode(True)
                 for tren in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
@@ -96,5 +101,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 print("Trained for", tren + 1, "times")
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
+                mid3 = time.time()
+                print("Training took:", mid3-mid2)
             print("Ending epoch")
             self._end_epoch(epoch)
