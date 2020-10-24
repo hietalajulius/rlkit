@@ -7,6 +7,7 @@ from rlkit.samplers.rollout_functions import multitask_rollout
 from generate.sideways_trajectory import items2
 from pynput import mouse
 import copy
+import math
 
 class SidewaysActor(object):
     def __init__(self):
@@ -14,7 +15,7 @@ class SidewaysActor(object):
         self.current_action_idx = 0
 
     def get_action(self, obs, **kwargs):
-        ac = np.array([0.0,0.0,0.0])
+        ac = np.array([0.0,0.0,0.0,0.0])
         if self.current_action_idx < len(self.items):
             action = copy.deepcopy(self.items[self.current_action_idx])
             #action.append(1)
@@ -26,10 +27,15 @@ class SidewaysActor(object):
             ac[0] = -0.05
             ac[2] = -0.5
 
+        ac = np.array([-0.1,0.1,0.1, 0.0])
+        if self.current_action_idx > 30:
+            ac[3] = -0.1
+        #ac = np.array([0,0,0])
         self.current_action_idx += 1
         #ac += np.random.normal(0, 0.1, 3)
         return ac, {} #np.random.normal(0, 0.1, 12), {}
     def reset(self):
+        print("Reset")
         self.current_action_idx = 0
 
 
@@ -98,13 +104,13 @@ if __name__ == "__main__":
     env_name = 'Cloth-v1'
     env_kwargs = dict(
         learn_grasp = False,
-        n_actions=3,
+        n_actions=4,
         task="sideways",
         pixels=False,
         strict=True,
         distance_threshold=0.05,
         randomize_params=True,
-        uniform_jnt_tend=True,
+        uniform_jnt_tend=True
 
     )
     num_examples = 100
