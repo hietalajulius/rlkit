@@ -108,7 +108,6 @@ def rollout(
         raw_obs.append(o)
         o_for_agent = preprocess_obs_for_policy_fn(o)
         a,  agent_info = agent.get_action(o_for_agent, **get_action_kwargs)
-        #print("auxxx", aux_output)
 
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
@@ -116,6 +115,11 @@ def rollout(
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
         if render:
             env.render(**render_kwargs)
+  
+            #image_obs = env.render(width=100, height=100, mode='rgb_array')
+            #cv2.imshow('env', image_obs)
+            #cv2.imshow('env', cv2.cvtColor(image_obs, cv2.COLOR_RGB2BGR))
+            #cv2.waitKey(1)
             if image_capture:
                 img = copy.deepcopy(env.render(**render_kwargs))
                 cv2.imwrite('images/'+str(path_length)+'.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
