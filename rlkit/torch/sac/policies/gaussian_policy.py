@@ -93,6 +93,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
             init_w=init_w,
             **kwargs
         )
+        self.vers = 0
         self.log_std = None
         self.std = std
         if std is None:
