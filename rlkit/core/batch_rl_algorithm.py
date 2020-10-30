@@ -12,8 +12,10 @@ import numpy as np
 from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
 from multiprocessing import Process, Queue, Manager
 from multiprocessing.managers import BaseManager
+from queue import LifoQueue
 import threading
 from rlkit.torch.sac.policies import TanhGaussianPolicy
+import copy
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -106,13 +108,19 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 start_train = time.time()
                 self.training_mode(True)
                 for tren in range(self.num_trains_per_train_loop):
+                    start_sam = time.time()
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
+                    sam_time = time.time() - start_sam
+                    print("Took to sample:", sam_time, "sample in:", train_data.keys(), train_data['observations'].shape)
                     if not self.demo_buffer == None:
                         demo_data = self.demo_buffer.random_batch(int(self.batch_size*(1/8)))
                         self.trainer.train(train_data, demo_data)
                     else:
+                        start_train_train = time.time()
                         self.trainer.train(train_data)
+                        train_train_time = time.time() - start_train_train
+                        print("Took to train once:", train_train_time, "\n")
                 #print("Trained for", tren + 1, "times")
                 tra_time = time.time() - start_train
                 print("Took to train:", tra_time)
@@ -128,11 +136,43 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
 
 
-def get_paths(new_path_queue, buffer):
+def get_paths(new_path_queue, batch_queue):
+    kwargs = dict(
+            task="sideways",
+            pixels=False,
+            strict=True,
+            distance_threshold=0.05,
+            randomize_params=False,
+            randomize_geoms=False,
+            uniform_jnt_tend=True,
+            max_advance=0.05,
+            random_seed=1
+        )
+
+    buffer_env = NormalizedBoxEnv(gym.make('Cloth-v1', **kwargs))
+    buffer_kwargs = dict(
+        max_size=100000,
+        fraction_goals_env_goals = 0,
+        fraction_goals_rollout_goals = 0.2,
+        internal_keys = ['model_params']
+    )
+
+    buffer = ObsDictRelabelingBuffer(
+            env=buffer_env,
+            observation_key='observation',
+            desired_goal_key='desired_goal',
+            achieved_goal_key='achieved_goal',
+            **buffer_kwargs
+    )
+
     while True:
-        new_path = new_path_queue.get()  
-        #print("Read a new path")
-        buffer.add_path(new_path)
+        for _ in range(2):
+            new_path = new_path_queue.get()
+            buffer.add_path(new_path)
+        for _ in range(100):
+            batch = buffer.random_batch(256)
+            batch_queue.put(batch)
+            
 
 
 def add_batch(batch_queue, buffer):
@@ -164,7 +204,7 @@ def path_collector_process(path_queue, namespace, index):
 
     while True:
         current_policy = namespace.policy
-        print("Policy version", current_policy.fuba)
+        #print("Policy version", current_policy.vers)
         path = rollout(env, current_policy, max_path_length=50, preprocess_obs_for_policy_fn=obs_processor)
         path_queue.put(path)
 
@@ -232,58 +272,39 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             for c in collectors:
                 c.start()
                 
-            kwargs = dict(
-                task="sideways",
-                pixels=False,
-                strict=True,
-                distance_threshold=0.05,
-                randomize_params=False,
-                randomize_geoms=False,
-                uniform_jnt_tend=True,
-                max_advance=0.05,
-                random_seed=1
-            )
+        
 
-            buffer_env = NormalizedBoxEnv(gym.make('Cloth-v1', **kwargs))
-            buffer_kwargs = dict(
-                max_size=100000,
-                fraction_goals_env_goals = 0,
-                fraction_goals_rollout_goals = 0.2,
-                internal_keys = ['model_params']
-            )
-
-            buffer = ObsDictRelabelingBuffer(
-                    env=buffer_env,
-                    observation_key='observation',
-                    desired_goal_key='desired_goal',
-                    achieved_goal_key='achieved_goal',
-                    **buffer_kwargs
-            )
-
-
-            
-            path_getter = threading.Thread(target=get_paths, args=(path_queue,buffer))
+            batch_queue = LifoQueue()
+            path_getter = threading.Thread(target=get_paths, args=(path_queue, batch_queue))
             #batch_adder = threading.Thread(target=add_batch, args=(batch_queue,buffer))
 
             path_getter.start()
             #batch_adder.start()
 
             self.training_mode(True)
-            while True:  
-                    if buffer._size > 0:
-                        start_train = time.time()
-                        for _ in range(50):
-                            start_sample = time.time()
-                            train_data = buffer.random_batch(1000)
-                            sam_time = time.time() - start_sample
-                            print("Took to sample:", sam_time)
-                            self.trainer.train(train_data)
+            train_steps = 0
+            while batch_queue.qsize() < 100:
+                pass
+            while True:
+                print("Approximate q size", batch_queue.qsize())
+                #print("Stats", sampled_batches, train_batch_memory)
+                start_train = time.time()
+                for _ in range(100):
+                    start_sample = time.time()
+                    train_data = copy.deepcopy(batch_queue.get())
+                    sam_time = time.time() - start_sample
+                    print("Took to sample:", sam_time, "sample in:", train_data.keys(), train_data['observations'].shape)
+                    start_train_train = time.time()
+                    self.trainer.train(train_data)
+                    train_train_time = time.time() - start_train_train
+                    print("Took to train once:", train_train_time, "\n")
+                    train_steps += 1
 
-                        train_time = time.time() - start_train
-                        print("Took to train:", train_time, "\n")
-                        tmp_policy = self.trainer._base_trainer.policy
-                        tmp_policy.fuba += 1
-                        collection_ns.policy = tmp_policy
+                train_time = time.time() - start_train
+                print("Took to train:", train_time, "current train iters", train_steps, "\n")
+                tmp_policy = self.trainer._base_trainer.policy
+                tmp_policy.vers += 1
+                collection_ns.policy = tmp_policy
 
 
 
