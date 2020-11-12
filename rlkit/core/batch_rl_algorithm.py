@@ -310,9 +310,9 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 print("Updated policy")
                 for tren in range(self.num_trains_per_train_loop):
                     start_sam = time.time()
-                    #print("Getting from batch q", self.batch_queue.qsize())
+                    print("Getting from batch q", self.batch_queue.qsize())
                     train_data = self.batch_queue.get()
-                    #print("Got from batch q", self.batch_queue.qsize())
+                    print("Got from batch q", self.batch_queue.qsize())
                     sam_time = time.time() - start_sam
                     sam_times_cycle += sam_time
                     #print("Took to sample:", sam_time)
