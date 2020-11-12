@@ -5,7 +5,7 @@ import numpy as np
 
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.data_collector.base import PathCollector
-from rlkit.samplers.rollout_functions import rollout
+from rlkit.samplers.rollout_functions import rollout, vec_env_rollout
 import glob
 import os
 
@@ -58,6 +58,7 @@ class MdpPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
+            max_path_length_this_loop = max_path_length #Override, always perform max path length steps
             path = self._rollout_fn(
                 self._env,
                 self._policy,
@@ -127,6 +128,48 @@ class KeyPathCollector(MdpPathCollector):
         rollout_fn = partial(
             rollout,
             preprocess_obs_for_policy_fn=obs_processor,
+        )
+        super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
+        self._observation_key = observation_key
+        self._desired_goal_key = desired_goal_key
+        self._additional_keys = additional_keys
+        self._goal_sampling_mode = goal_sampling_mode
+
+
+    def collect_new_paths(self, *args, **kwargs):
+        self._env.goal_sampling_mode = self._goal_sampling_mode
+        return super().collect_new_paths(*args, **kwargs)
+
+    def get_snapshot(self):
+        snapshot = super().get_snapshot()
+        snapshot.update(
+            observation_key=self._observation_key,
+            desired_goal_key=self._desired_goal_key
+        )
+        return snapshot
+
+class VectorizedKeyPathCollector(MdpPathCollector):
+    def __init__(
+            self,
+            *args,
+            observation_key='observation',
+            desired_goal_key='desired_goal',
+            additional_keys=[],
+            goal_sampling_mode=None,
+            processes=5,
+            **kwargs
+    ):
+        def obs_processor(o):
+            obs = o[observation_key]
+            for key in additional_keys:
+                obs = np.hstack((obs, o[key]))
+            obs = np.hstack((obs, o[desired_goal_key]))
+            return obs
+
+        rollout_fn = partial(
+            vec_env_rollout,
+            preprocess_obs_for_policy_fn=obs_processor,
+            processes=processes,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
         self._observation_key = observation_key

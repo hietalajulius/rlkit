@@ -68,6 +68,89 @@ def contextual_rollout(
     )
     return paths
 
+def vec_env_rollout(
+        vec_env,
+        agent,
+        max_path_length=np.inf,
+        render=False,
+        image_capture=False,
+        render_kwargs=None,
+        preprocess_obs_for_policy_fn=None,
+        get_action_kwargs=None,
+        return_dict_obs=False,
+        full_o_postprocess_func=None,
+        reset_callback=None,
+        processes=5
+):
+    if get_action_kwargs is None:
+        get_action_kwargs = {}
+    if preprocess_obs_for_policy_fn is None:
+        preprocess_obs_for_policy_fn = lambda x: x
+    raw_obs = []
+    raw_next_obs = []
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    next_observations = []
+    path_length = 0
+    agent.reset()
+    o = vec_env.reset()
+
+    while path_length < max_path_length:
+        for sub_obs_idx in range(processes):
+            sub_obs = dict()
+            for key in o.keys():
+                sub_obs[key] = o[key][sub_obs_idx]
+            raw_obs.append(sub_obs)
+            observations.append(sub_obs)
+
+        o_for_agent = preprocess_obs_for_policy_fn(o)
+        acs = agent.get_actions(o_for_agent, **get_action_kwargs)
+
+        vec_env.step_async(copy.deepcopy(acs))
+        next_o, r, d, env_info = vec_env.step_wait()
+
+        for next_sub_obs_idx in range(processes):
+            next_sub_obs = dict()
+            for key in next_o.keys():
+                next_sub_obs[key] = next_o[key][next_sub_obs_idx]
+            raw_next_obs.append(next_sub_obs)
+            next_observations.append(next_sub_obs)
+        rewards += list(r)
+        terminals += list(d)
+        actions += list(acs)
+
+        agent_infos += [{} for _ in range(processes)]
+        env_infos += env_info
+        path_length += 1
+        #if d:
+            #break
+        o = next_o
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    next_observations = np.array(next_observations)
+    if return_dict_obs:
+        observations = raw_obs
+        next_observations = raw_next_obs
+    rewards = np.array(rewards)
+    if len(rewards.shape) == 1:
+        rewards = rewards.reshape(-1, 1)
+    return dict(
+        observations=observations,
+        actions=actions,
+        rewards=rewards,
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        agent_infos=agent_infos,
+        env_infos=env_infos,
+        full_observations=raw_obs,
+        full_next_observations=raw_obs,
+    )
 
 def rollout(
         env,

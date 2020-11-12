@@ -8,6 +8,7 @@ from rlkit.samplers.data_collector.path_collector import (
     ObsDictPathCollector,
     GoalConditionedPathCollector,
     KeyPathCollector,
+    VectorizedKeyPathCollector,
     VAEWrappedEnvPathCollector,
 )
 from rlkit.samplers.data_collector.step_collector import (

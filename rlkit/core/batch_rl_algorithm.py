@@ -16,6 +16,7 @@ from queue import LifoQueue
 import threading
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 import copy
+import os
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -95,7 +96,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     discard_incomplete_paths=False,
                 )
                 col_time = time.time() - start_collect
-                print("Took to collect:", col_time)
+                print("Took to collect:", col_time, self.replay_buffer._size)
                 collect_times += col_time
                 gt.stamp('exploration sampling', unique=False)
                 #for path in new_expl_paths:
@@ -112,7 +113,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
                     sam_time = time.time() - start_sam
-                    print("Took to sample:", sam_time, "sample in:", train_data.keys(), train_data['observations'].shape)
+                    #print("Took to sample:", sam_time)
                     if not self.demo_buffer == None:
                         demo_data = self.demo_buffer.random_batch(int(self.batch_size*(1/8)))
                         self.trainer.train(train_data, demo_data)
@@ -120,7 +121,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         start_train_train = time.time()
                         self.trainer.train(train_data)
                         train_train_time = time.time() - start_train_train
-                        print("Took to train once:", train_train_time, "\n")
+                        #print("Took to train once:", train_train_time, "\n")
                 #print("Trained for", tren + 1, "times")
                 tra_time = time.time() - start_train
                 print("Took to train:", tra_time)
@@ -136,27 +137,13 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
 
 
-def get_paths(new_path_queue, batch_queue):
-    kwargs = dict(
-            task="sideways",
-            pixels=False,
-            strict=True,
-            distance_threshold=0.05,
-            randomize_params=False,
-            randomize_geoms=False,
-            uniform_jnt_tend=True,
-            max_advance=0.05,
-            random_seed=1
-        )
-
-    buffer_env = NormalizedBoxEnv(gym.make('Cloth-v1', **kwargs))
-    buffer_kwargs = dict(
-        max_size=100000,
-        fraction_goals_env_goals = 0,
-        fraction_goals_rollout_goals = 0.2,
-        internal_keys = ['model_params']
-    )
-
+def get_paths(new_path_queue, batch_queue, env_kwargs, buffer_kwargs):
+    print("Get paths started")
+    if os.environ.get('CUDA_VISIBLE_DEVICES') is not None:
+        del os.environ['CUDA_VISIBLE_DEVICES']
+    os.environ["CUDA_MPS_PIPE_DIRECTORY"] = "/tmp/nvidia-mps"
+    os.environ["CUDA_MPS_LOG_DIRECTORY"] = "/tmp/nvidia-log"
+    buffer_env = NormalizedBoxEnv(gym.make('Cloth-v1', **env_kwargs))
     buffer = ObsDictRelabelingBuffer(
             env=buffer_env,
             observation_key='observation',
@@ -164,6 +151,7 @@ def get_paths(new_path_queue, batch_queue):
             achieved_goal_key='achieved_goal',
             **buffer_kwargs
     )
+    
 
     while True:
         for _ in range(2):
@@ -183,29 +171,27 @@ def add_batch(batch_queue, buffer):
             batch_queue.put(batch)
 
 
-def path_collector_process(path_queue, namespace, index):
-    kwargs = dict(
-            task="sideways",
-            pixels=False,
-            strict=True,
-            distance_threshold=0.05,
-            randomize_params=False,
-            randomize_geoms=False,
-            uniform_jnt_tend=True,
-            max_advance=0.05,
-            random_seed=1
-        )
-    env = NormalizedBoxEnv(gym.make('Cloth-v1', **kwargs))
+def path_collector_process(path_queue, namespace, index, env_kwargs, desired_goal_key, observation_key, additional_keys):
+    if os.environ.get('CUDA_VISIBLE_DEVICES') is not None:
+        del os.environ['CUDA_VISIBLE_DEVICES']
+    os.environ["CUDA_MPS_PIPE_DIRECTORY"] = "/tmp/nvidia-mps"
+    os.environ["CUDA_MPS_LOG_DIRECTORY"] = "/tmp/nvidia-log"
+    env = NormalizedBoxEnv(gym.make('Cloth-v1', **env_kwargs))
+    print("Env was created")
 
     def obs_processor(o):
-        obs = o['observation']
-        obs = np.hstack((obs, o['model_params'], o['desired_goal']))
+        obs = o[observation_key]
+        for key in additional_keys:
+            obs = np.hstack((obs, o[key]))
+        obs = np.hstack((obs, o[desired_goal_key]))
         return obs
 
+    print("start path collection in idx", index)
     while True:
         current_policy = namespace.policy
         #print("Policy version", current_policy.vers)
         path = rollout(env, current_policy, max_path_length=50, preprocess_obs_for_policy_fn=obs_processor)
+        print("Collected a path in idx", index)
         path_queue.put(path)
 
 
@@ -221,6 +207,10 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
+            path_collector_observation_key,
+            desired_goal_key,
+            env_kwargs,
+            buffer_kwargs,
             exploration_env,
             evaluation_env,
             exploration_data_collector: PathCollector,
@@ -236,7 +226,8 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             min_num_steps_before_training=0,
             demo_buffer: ReplayBuffer = None,
             demo_paths = None,
-            num_processes = 3
+            num_processes = 2,
+            additional_keys=[]
     ):
         super().__init__(
             trainer,
@@ -248,6 +239,13 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             demo_buffer,
             demo_paths
         )
+        self.path_collector_observation_key = path_collector_observation_key
+        self.desired_goal_key = desired_goal_key
+        self.additional_keys = additional_keys
+        self.env_kwargs = env_kwargs
+        self.buffer_kwargs = buffer_kwargs
+
+
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
@@ -259,24 +257,29 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_processes = num_processes
 
     def _train(self):
+        if os.environ.get('CUDA_VISIBLE_DEVICES') is not None:
+            del os.environ['CUDA_VISIBLE_DEVICES']
+        os.environ["CUDA_MPS_PIPE_DIRECTORY"] = "/tmp/nvidia-mps"
+        os.environ["CUDA_MPS_LOG_DIRECTORY"] = "/tmp/nvidia-log"
 
         with Manager() as manager:
             collection_ns = manager.Namespace()
 
-            collection_ns.policy = self.trainer._base_trainer.policy
+            collection_policy = copy.deepcopy(self.trainer._base_trainer.policy)
+            collection_ns.policy = collection_policy.to('cpu')
             
             path_queue = Queue()
-            #batch_queue = Queue()
+            batch_queue = Queue()
 
-            collectors = [Process(target=path_collector_process, args=(path_queue, collection_ns, i)) for i in range(self.num_processes)]
+            collectors = [Process(target=path_collector_process, args=(path_queue, collection_ns, i, self.env_kwargs, self.desired_goal_key, self.path_collector_observation_key, self.additional_keys)) for i in range(self.num_processes)]
             for c in collectors:
                 c.start()
                 
         
 
             batch_queue = LifoQueue()
-            path_getter = threading.Thread(target=get_paths, args=(path_queue, batch_queue))
-            #batch_adder = threading.Thread(target=add_batch, args=(batch_queue,buffer))
+            path_getter = threading.Thread(target=get_paths, args=(path_queue, batch_queue, self.env_kwargs, self.buffer_kwargs))
+            #batch_adder = threading.Thread(target=add_batch, args=(batch_queue, buffer))
 
             path_getter.start()
             #batch_adder.start()
@@ -284,6 +287,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.training_mode(True)
             train_steps = 0
             while batch_queue.qsize() < 100:
+                #print("Path q size", path_queue.qsize())
                 pass
             while True:
                 print("Approximate q size", batch_queue.qsize())
@@ -293,7 +297,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     start_sample = time.time()
                     train_data = copy.deepcopy(batch_queue.get())
                     sam_time = time.time() - start_sample
-                    print("Took to sample:", sam_time, "sample in:", train_data.keys(), train_data['observations'].shape)
+                    print("Took to sample:", sam_time)
                     start_train_train = time.time()
                     self.trainer.train(train_data)
                     train_train_time = time.time() - start_train_train
