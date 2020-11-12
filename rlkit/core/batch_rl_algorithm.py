@@ -17,6 +17,8 @@ import threading
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 import copy
 import os
+import multiprocessing
+import copy
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -108,6 +110,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.training_mode(True)
                 sam_times_cycle = 0
                 train_train_times_cycle = 0
+                
                 for tren in range(self.num_trains_per_train_loop):
                     start_sam = time.time()
                     train_data = self.replay_buffer.random_batch(
@@ -215,10 +218,6 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
-            path_collector_observation_key,
-            desired_goal_key,
-            env_kwargs,
-            buffer_kwargs,
             exploration_env,
             evaluation_env,
             exploration_data_collector: PathCollector,
@@ -234,8 +233,8 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             min_num_steps_before_training=0,
             demo_buffer: ReplayBuffer = None,
             demo_paths = None,
-            num_processes = 2,
-            additional_keys=[]
+            namespace=None,
+            batch_queue=None
     ):
         super().__init__(
             trainer,
@@ -247,13 +246,8 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             demo_buffer,
             demo_paths
         )
-        self.path_collector_observation_key = path_collector_observation_key
-        self.desired_goal_key = desired_goal_key
-        self.additional_keys = additional_keys
-        self.env_kwargs = env_kwargs
-        self.buffer_kwargs = buffer_kwargs
-
-
+        self.namespace = namespace
+        self.batch_queue = batch_queue
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
@@ -262,61 +256,89 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
-        self.num_processes = num_processes
 
     def _train(self):
-        if os.environ.get('CUDA_VISIBLE_DEVICES') is not None:
-            del os.environ['CUDA_VISIBLE_DEVICES']
-        os.environ["CUDA_MPS_PIPE_DIRECTORY"] = "/tmp/nvidia-mps"
-        os.environ["CUDA_MPS_LOG_DIRECTORY"] = "/tmp/nvidia-log"
+        if self.min_num_steps_before_training > 0:
+            init_expl_paths = self.expl_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.min_num_steps_before_training,
+                discard_incomplete_paths=False,
+            )
+            self.replay_buffer.add_paths(init_expl_paths)
+            self.expl_data_collector.end_epoch(-1)
 
-        with Manager() as manager:
-            collection_ns = manager.Namespace()
+        for epoch in gt.timed_for(
+                range(self._start_epoch, self.num_epochs),
+                save_itrs=True,
+        ):  
 
-            collection_policy = copy.deepcopy(self.trainer._base_trainer.policy)
-            collection_ns.policy = collection_policy.to('cpu')
-            
-            path_queue = Queue()
-            batch_queue = Queue()
+            print("Epoch", epoch)
+            collect_times = 0
+            train_times = 0
+            total_times = 0
+            for cycle in range(self.num_train_loops_per_epoch):
+                #print("Namespa", self.namespace)
+                #print("\n Cycle", cycle, epoch)
+                start_collect = time.time()
+                '''
+                new_expl_paths = self.expl_data_collector.collect_new_paths(
+                    self.max_path_length,
+                    self.num_expl_steps_per_train_loop,
+                    discard_incomplete_paths=False,
+                )
+                col_time = time.time() - start_collect
+                collect_times += col_time
+                gt.stamp('exploration sampling', unique=False)
 
-            collectors = [Process(target=path_collector_process, args=(path_queue, collection_ns, i, self.env_kwargs, self.desired_goal_key, self.path_collector_observation_key, self.additional_keys)) for i in range(self.num_processes)]
-            for c in collectors:
-                c.start()
-                
-        
+                self.replay_buffer.add_paths(new_expl_paths)
+                print("Took to collect:", col_time, self.replay_buffer._size)
 
-            batch_queue = LifoQueue()
-            path_getter = threading.Thread(target=get_paths, args=(path_queue, batch_queue, self.env_kwargs, self.buffer_kwargs))
-            #batch_adder = threading.Thread(target=add_batch, args=(batch_queue, buffer))
+                gt.stamp('data storing', unique=False)
+                '''
 
-            path_getter.start()
-            #batch_adder.start()
-
-            self.training_mode(True)
-            train_steps = 0
-            while batch_queue.qsize() < 100:
-                #print("Path q size", path_queue.qsize())
-                pass
-            while True:
-                print("Approximate q size", batch_queue.qsize())
-                #print("Stats", sampled_batches, train_batch_memory)
                 start_train = time.time()
-                for _ in range(100):
-                    start_sample = time.time()
-                    train_data = copy.deepcopy(batch_queue.get())
-                    sam_time = time.time() - start_sample
-                    print("Took to sample:", sam_time)
+                self.training_mode(True)
+                sam_times_cycle = 0
+                train_train_times_cycle = 0
+                '''
+                train_data = self.replay_buffer.random_batch( #Batches need to be gotten faster
+                        self.batch_size)
+                '''
+                temp_policy = copy.deepcopy(self.trainer._base_trainer.policy)
+                temp_policy.to('cpu')
+                self.namespace.policy = temp_policy
+                print("Updated policy")
+                for tren in range(self.num_trains_per_train_loop):
+                    start_sam = time.time()
+                    #print("Getting from batch q", self.batch_queue.qsize())
+                    train_data = self.batch_queue.get()
+                    #print("Got from batch q", self.batch_queue.qsize())
+                    sam_time = time.time() - start_sam
+                    sam_times_cycle += sam_time
+                    #print("Took to sample:", sam_time)
                     start_train_train = time.time()
                     self.trainer.train(train_data)
                     train_train_time = time.time() - start_train_train
-                    print("Took to train once:", train_train_time, "\n")
-                    train_steps += 1
-
-                train_time = time.time() - start_train
-                print("Took to train:", train_time, "current train iters", train_steps, "\n")
-                tmp_policy = self.trainer._base_trainer.policy
-                tmp_policy.vers += 1
-                collection_ns.policy = tmp_policy
-
-
-
+                    train_train_times_cycle += train_train_time
+                tra_time = time.time() - start_train
+                
+                print("Took to train: \n",
+                        tra_time,
+                        "\nAverage pure train: \n",
+                        train_train_times_cycle/self.num_trains_per_train_loop,
+                        "\nAverage sample time: \n",
+                        sam_times_cycle/self.num_trains_per_train_loop,
+                        "\nAverage full sample and train: \n",
+                        tra_time/self.num_trains_per_train_loop
+                        )
+                
+                train_times += tra_time
+                gt.stamp('training', unique=False)
+                self.training_mode(False)
+                total_times += time.time() - start_collect
+                self.trainer._base_trainer.policy.vers += 1
+                
+            print("Time collect avg cycle:", collect_times/self.num_train_loops_per_epoch)
+            print("Time train avg cycle:", train_times/self.num_train_loops_per_epoch)
+            print("Total avg cycle:", total_times/self.num_train_loops_per_epoch)
+            print("Ending epoch")

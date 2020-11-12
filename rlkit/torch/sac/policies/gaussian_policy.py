@@ -468,6 +468,7 @@ class TanhCNNGaussianPolicy(CNN, TorchStochasticPolicy):
             init_w=init_w,
             **kwargs
         )
+        self.vers = 0
         obs_dim = self.input_width * self.input_height
         action_dim = self.output_size
         self.log_std = None
