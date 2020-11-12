@@ -71,6 +71,7 @@ def contextual_rollout(
 def vec_env_rollout(
         vec_env,
         agent,
+        processes=None,
         max_path_length=np.inf,
         render=False,
         image_capture=False,
@@ -80,8 +81,12 @@ def vec_env_rollout(
         return_dict_obs=False,
         full_o_postprocess_func=None,
         reset_callback=None,
-        processes=5
+        
 ):
+
+
+    if processes == None:
+        raise Exception("Number of processes not provided")
     if get_action_kwargs is None:
         get_action_kwargs = {}
     if preprocess_obs_for_policy_fn is None:

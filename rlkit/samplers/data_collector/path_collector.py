@@ -156,7 +156,7 @@ class VectorizedKeyPathCollector(MdpPathCollector):
             desired_goal_key='desired_goal',
             additional_keys=[],
             goal_sampling_mode=None,
-            processes=5,
+            processes=None,
             **kwargs
     ):
         def obs_processor(o):
@@ -168,8 +168,8 @@ class VectorizedKeyPathCollector(MdpPathCollector):
 
         rollout_fn = partial(
             vec_env_rollout,
-            preprocess_obs_for_policy_fn=obs_processor,
             processes=processes,
+            preprocess_obs_for_policy_fn=obs_processor,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
         self._observation_key = observation_key

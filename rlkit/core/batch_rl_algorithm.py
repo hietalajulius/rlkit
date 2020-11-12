@@ -96,23 +96,24 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     discard_incomplete_paths=False,
                 )
                 col_time = time.time() - start_collect
-                print("Took to collect:", col_time, self.replay_buffer._size)
                 collect_times += col_time
                 gt.stamp('exploration sampling', unique=False)
-                #for path in new_expl_paths:
-                    #print("Added episode", len(path['observations']))
 
                 self.replay_buffer.add_paths(new_expl_paths)
-                #print("Replay buf", self.replay_buffer._size)
+                print("Took to collect:", col_time, self.replay_buffer._size)
+
                 gt.stamp('data storing', unique=False)
 
                 start_train = time.time()
                 self.training_mode(True)
+                sam_times_cycle = 0
+                train_train_times_cycle = 0
                 for tren in range(self.num_trains_per_train_loop):
                     start_sam = time.time()
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
                     sam_time = time.time() - start_sam
+                    sam_times_cycle += sam_time
                     #print("Took to sample:", sam_time)
                     if not self.demo_buffer == None:
                         demo_data = self.demo_buffer.random_batch(int(self.batch_size*(1/8)))
@@ -121,10 +122,17 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         start_train_train = time.time()
                         self.trainer.train(train_data)
                         train_train_time = time.time() - start_train_train
-                        #print("Took to train once:", train_train_time, "\n")
-                #print("Trained for", tren + 1, "times")
+                        train_train_times_cycle += train_train_time
                 tra_time = time.time() - start_train
-                print("Took to train:", tra_time)
+                print("Took to train: \n",
+                        tra_time,
+                        "\nAverage pure train: \n",
+                        train_train_times_cycle/self.num_trains_per_train_loop,
+                        "\nAverage sample time: \n",
+                        sam_times_cycle/self.num_trains_per_train_loop,
+                        "\nAverage full sample and train: \n",
+                        tra_time/self.num_trains_per_train_loop
+                        )
                 train_times += tra_time
                 gt.stamp('training', unique=False)
                 self.training_mode(False)

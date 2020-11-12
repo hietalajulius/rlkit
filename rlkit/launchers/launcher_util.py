@@ -416,7 +416,8 @@ try:
                 mount.MountLocal(local_dir=code_dir, pythonpath=True)
             )
 except ImportError:
-    print("doodad not detected")
+    pass
+    #print("doodad not detected")
 
 target_mount = None
 
