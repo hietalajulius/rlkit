@@ -10,14 +10,11 @@ from rlkit.samplers.rollout_functions import rollout
 import gym
 import numpy as np
 from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-from multiprocessing import Process, Queue, Manager
-from multiprocessing.managers import BaseManager
 from queue import LifoQueue
 import threading
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 import copy
 import os
-import multiprocessing
 import copy
 
 
@@ -233,8 +230,10 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             min_num_steps_before_training=0,
             demo_buffer: ReplayBuffer = None,
             demo_paths = None,
-            namespace=None,
-            batch_queue=None
+            batch_queue=None,
+            policy_weights_queue=None,
+            new_policy_event=None,
+            batch_processed_event=None,
     ):
         super().__init__(
             trainer,
@@ -246,8 +245,10 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             demo_buffer,
             demo_paths
         )
-        self.namespace = namespace
         self.batch_queue = batch_queue
+        self.policy_weights_queue = policy_weights_queue
+        self.new_policy_event = new_policy_event
+        self.batch_processed_event = batch_processed_event
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
@@ -305,20 +306,31 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         self.batch_size)
                 '''
                 temp_policy = copy.deepcopy(self.trainer._base_trainer.policy)
-                temp_policy.to('cpu')
-                self.namespace.policy = temp_policy
+                temp_policy_weights = temp_policy.to('cpu').state_dict()
+                self.policy_weights_queue.put(temp_policy_weights)
+                self.new_policy_event.set()
                 print("Updated policy")
+
                 for tren in range(self.num_trains_per_train_loop):
                     start_sam = time.time()
-                    print("Getting from batch q", self.batch_queue.qsize())
+
+
                     train_data = self.batch_queue.get()
-                    print("Got from batch q", self.batch_queue.qsize())
+                    self.batch_processed_event.set()
                     sam_time = time.time() - start_sam
                     sam_times_cycle += sam_time
-                    #print("Took to sample:", sam_time)
+                    
+                    
                     start_train_train = time.time()
-                    self.trainer.train(train_data)
+                    self.trainer.train_from_torch(train_data)
                     train_train_time = time.time() - start_train_train
+                    start_delete_time = time.time()
+                    del train_data
+                    delete_time = time.time() - start_delete_time
+                    if tren % 100 == 0:
+                        print(tren,"/",self.num_trains_per_train_loop, "Took to sample:", sam_time)
+                        print(tren,"/",self.num_trains_per_train_loop, "Took to train:", train_train_time)
+                        print(tren,"/",self.num_trains_per_train_loop, "Took to delete:", delete_time, "\n")
                     train_train_times_cycle += train_train_time
                 tra_time = time.time() - start_train
                 
