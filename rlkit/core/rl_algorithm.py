@@ -27,14 +27,14 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
-            exploration_env,
-            evaluation_env,
-            exploration_data_collector: DataCollector,
-            evaluation_data_collector: DataCollector,
-            replay_buffer: ReplayBuffer,
+            exploration_env = None,
+            evaluation_env = None,
+            exploration_data_collector: DataCollector = None,
+            evaluation_data_collector: DataCollector = None,
+            replay_buffer: ReplayBuffer = None,
             demo_buffer: ReplayBuffer = None,
             demo_paths = None
-    ):
+    ):  
         self.trainer = trainer
         self.expl_env = exploration_env
         self.eval_env = evaluation_env
@@ -66,9 +66,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         gt.stamp('saving')
         self._log_stats(epoch)
 
-        self.expl_data_collector.end_epoch(epoch)
-        self.eval_data_collector.end_epoch(epoch)
-        self.replay_buffer.end_epoch(epoch)
+        if not self.expl_data_collector == None:
+            self.expl_data_collector.end_epoch(epoch)
+        if not self.eval_data_collector == None:
+            self.eval_data_collector.end_epoch(epoch)
+        if not self.replay_buffer == None:
+            self.replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
 
         for post_epoch_func in self.post_epoch_funcs:
@@ -78,12 +81,15 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
-        for k, v in self.expl_data_collector.get_snapshot().items():
-            snapshot['exploration/' + k] = v
-        for k, v in self.eval_data_collector.get_snapshot().items():
-            snapshot['evaluation/' + k] = v
-        for k, v in self.replay_buffer.get_snapshot().items():
-            snapshot['replay_buffer/' + k] = v
+        if not self.expl_data_collector == None:
+            for k, v in self.expl_data_collector.get_snapshot().items():
+                snapshot['exploration/' + k] = v
+        if not self.eval_data_collector == None:
+            for k, v in self.eval_data_collector.get_snapshot().items():
+                snapshot['evaluation/' + k] = v
+        if not self.replay_buffer == None:
+            for k, v in self.replay_buffer.get_snapshot().items():
+                snapshot['replay_buffer/' + k] = v
         return snapshot
 
     def _log_stats(self, epoch):
@@ -92,10 +98,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Replay Buffer
         """
-        logger.record_dict(
-            self.replay_buffer.get_diagnostics(),
-            prefix='replay_buffer/'
-        )
+        
+        if not self.replay_buffer == None:
+            logger.record_dict(
+                self.replay_buffer.get_diagnostics(),
+                prefix='replay_buffer/'
+            )
 
         """
         Trainer
@@ -105,37 +113,44 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Exploration
         """
-        logger.record_dict(
-            self.expl_data_collector.get_diagnostics(),
-            prefix='exploration/'
-        )
-        expl_paths = self.expl_data_collector.get_epoch_paths()
-        if hasattr(self.expl_env, 'get_diagnostics'):
+        if not self.expl_data_collector == None:
             logger.record_dict(
-                self.expl_env.get_diagnostics(expl_paths),
-                prefix='exploration/',
+                self.expl_data_collector.get_diagnostics(),
+                prefix='exploration/'
             )
-        logger.record_dict(
-            eval_util.get_generic_path_information(expl_paths),
-            prefix="exploration/",
-        )
+            expl_paths = self.expl_data_collector.get_epoch_paths()
+            logger.record_dict(
+                eval_util.get_generic_path_information(expl_paths),
+                prefix="exploration/",
+            )
+        if not self.expl_env == None:
+            if hasattr(self.expl_env, 'get_diagnostics'):
+                logger.record_dict(
+                    self.expl_env.get_diagnostics(expl_paths),
+                    prefix='exploration/',
+                )
+        
         """
         Evaluation
         """
-        logger.record_dict(
-            self.eval_data_collector.get_diagnostics(),
-            prefix='evaluation/',
-        )
-        eval_paths = self.eval_data_collector.get_epoch_paths()
-        if hasattr(self.eval_env, 'get_diagnostics'):
+        if not self.eval_data_collector == None:
             logger.record_dict(
-                self.eval_env.get_diagnostics(eval_paths),
+                self.eval_data_collector.get_diagnostics(),
                 prefix='evaluation/',
             )
-        logger.record_dict(
-            eval_util.get_generic_path_information(eval_paths),
-            prefix="evaluation/",
-        )
+            eval_paths = self.eval_data_collector.get_epoch_paths()
+            logger.record_dict(
+                eval_util.get_generic_path_information(eval_paths),
+                prefix="evaluation/",
+            )
+            self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(eval_paths)['env_infos/final/is_success Mean'], epoch)
+        if not self.eval_env == None:
+            if hasattr(self.eval_env, 'get_diagnostics'):
+                logger.record_dict(
+                    self.eval_env.get_diagnostics(eval_paths),
+                    prefix='evaluation/',
+                )
+        
         if not self.demo_paths == None:
             print("Logging demo path stats")
             logger.record_dict(
@@ -143,7 +158,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 prefix="evaluation/demonstrations/",
             )
 
-        self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(eval_paths)['env_infos/final/is_success Mean'], epoch)
+        
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():
             self.writer.add_scalar('test/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
         print("Logged tensorboard")

@@ -21,7 +21,7 @@ SACLosses = namedtuple(
 class SACTrainer(TorchTrainer, LossFunction):
     def __init__(
             self,
-            env,
+            policy_target_entropy,
             policy,
             qf1,
             qf2,
@@ -44,7 +44,6 @@ class SACTrainer(TorchTrainer, LossFunction):
             target_entropy=None,
     ):
         super().__init__()
-        self.env = env
         self.policy = policy
         self.qf1 = qf1
         self.qf2 = qf2
@@ -57,8 +56,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         if self.use_automatic_entropy_tuning:
             if target_entropy is None:
                 # Use heuristic value from SAC paper
-                self.target_entropy = -np.prod(
-                    self.env.action_space.shape).item()
+                self.target_entropy = policy_target_entropy
             else:
                 self.target_entropy = target_entropy
             self.log_alpha = ptu.zeros(1, requires_grad=True)

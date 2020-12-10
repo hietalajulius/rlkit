@@ -69,93 +69,77 @@ def contextual_rollout(
     return paths
 
 def vec_env_rollout(
-        vec_env,
+        env,
         agent,
-        processes=None,
+        processes=1,
         max_path_length=np.inf,
-        render=False,
-        image_capture=False,
-        render_kwargs=None,
         preprocess_obs_for_policy_fn=None,
-        get_action_kwargs=None,
-        return_dict_obs=False,
-        full_o_postprocess_func=None,
-        reset_callback=None,
-        
+        get_action_kwargs={}
 ):
-
-
-    if processes == None:
-        raise Exception("Number of processes not provided")
-    if get_action_kwargs is None:
-        get_action_kwargs = {}
     if preprocess_obs_for_policy_fn is None:
         preprocess_obs_for_policy_fn = lambda x: x
-    raw_obs = []
-    raw_next_obs = []
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    next_observations = []
+    
+    paths = []
+    for _ in range(processes):
+        path = dict(
+            observations=[],
+            actions=[],
+            rewards=[],
+            next_observations=[],
+            terminals=[],
+            agent_infos=[],
+            env_infos=[],
+        )
+        paths.append(path)
+
+    #raw_obs = []
+    #raw_next_obs = []
     path_length = 0
     agent.reset()
-    o = vec_env.reset()
+    o = env.reset()
 
     while path_length < max_path_length:
-        for sub_obs_idx in range(processes):
-            sub_obs = dict()
-            for key in o.keys():
-                sub_obs[key] = o[key][sub_obs_idx]
-            raw_obs.append(sub_obs)
-            observations.append(sub_obs)
-
         o_for_agent = preprocess_obs_for_policy_fn(o)
-        acs = agent.get_actions(o_for_agent, **get_action_kwargs)
+        a = agent.get_actions(o_for_agent, **get_action_kwargs)
+        agent_info = [{} for _ in range(processes)]
 
-        vec_env.step_async(copy.deepcopy(acs))
-        next_o, r, d, env_info = vec_env.step_wait()
+        next_o, r, d, env_info = env.step(copy.deepcopy(a))
 
-        for next_sub_obs_idx in range(processes):
-            next_sub_obs = dict()
-            for key in next_o.keys():
-                next_sub_obs[key] = next_o[key][next_sub_obs_idx]
-            raw_next_obs.append(next_sub_obs)
-            next_observations.append(next_sub_obs)
-        rewards += list(r)
-        terminals += list(d)
-        actions += list(acs)
+        for idx, path_dict in enumerate(paths):
+            obs_dict = dict()
+            next_obs_dict = dict()
+            for key in o.keys():
+                obs_dict[key] = o[key][idx]
+                next_obs_dict[key] = next_o[key][idx]
+            path_dict['observations'].append(obs_dict)
+            path_dict['rewards'].append(r[idx])
+            path_dict['terminals'].append(d[idx])
+            path_dict['actions'].append(a[idx])
+            path_dict['next_observations'].append(next_obs_dict)
+            path_dict['agent_infos'].append(agent_info[idx])
+            path_dict['env_infos'].append(env_info[idx])
 
-        agent_infos += [{} for _ in range(processes)]
-        env_infos += env_info
         path_length += 1
         #if d:
             #break
+            #TODO Figure out terminals handling
         o = next_o
-    actions = np.array(actions)
-    if len(actions.shape) == 1:
-        actions = np.expand_dims(actions, 1)
-    observations = np.array(observations)
-    next_observations = np.array(next_observations)
-    if return_dict_obs:
-        observations = raw_obs
-        next_observations = raw_next_obs
-    rewards = np.array(rewards)
-    if len(rewards.shape) == 1:
-        rewards = rewards.reshape(-1, 1)
-    return dict(
-        observations=observations,
-        actions=actions,
-        rewards=rewards,
-        next_observations=next_observations,
-        terminals=np.array(terminals).reshape(-1, 1),
-        agent_infos=agent_infos,
-        env_infos=env_infos,
-        full_observations=raw_obs,
-        full_next_observations=raw_obs,
-    )
+
+    for idx, path_dict in enumerate(paths):
+        path_dict['actions'] = np.array(path_dict['actions'])
+        path_dict['observations'] = np.array(path_dict['observations'])
+        path_dict['next_observations'] = np.array(path_dict['next_observations'])
+        path_dict['rewards'] = np.array(path_dict['rewards'])
+        path_dict['terminals'] = np.array(path_dict['terminals']).reshape(-1, 1)
+    
+        if len(path_dict['actions'].shape) == 1:
+            path_dict['actions'] = np.expand_dims(path_dict['actions'], 1)
+
+        if len(path_dict['rewards'].shape) == 1:
+            path_dict['rewards'] = path_dict['rewards'].reshape(-1, 1)
+
+
+    return paths
 
 def rollout(
         env,
@@ -169,6 +153,9 @@ def rollout(
         return_dict_obs=False,
         full_o_postprocess_func=None,
         reset_callback=None,
+        observation_key=None,
+        desired_goal_key=None,
+        additional_keys=None
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -188,19 +175,26 @@ def rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
+    next_o = o #TODO: del this, prob does not change issue
     if reset_callback:
         reset_callback(env, agent, o)
     if render:
         env.render(**render_kwargs)
     while path_length < max_path_length:
         raw_obs.append(o)
-        o_for_agent = preprocess_obs_for_policy_fn(o)
+        #o_for_agent = preprocess_obs_for_policy_fn(o)
+        o_for_agent = o[observation_key]
+        for key in additional_keys:
+            o_for_agent = np.hstack((o_for_agent, o[key]))
+        o_for_agent = np.hstack((o_for_agent, o[desired_goal_key]))
         a,  agent_info = agent.get_action(o_for_agent, **get_action_kwargs)
 
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        next_o, r, d, env_info = env.step(copy.deepcopy(a))
+        do_not_use, r, d, env_info = env.step(copy.deepcopy(a))
+        #print("Do not use...")
+
         if render:
             env.render(**render_kwargs)
   
