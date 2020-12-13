@@ -42,9 +42,9 @@ class CNN(PyTorchModule):
         if hidden_sizes is None:
             hidden_sizes = []
         assert len(kernel_sizes) == \
-               len(n_channels) == \
-               len(strides) == \
-               len(paddings)
+            len(n_channels) == \
+            len(strides) == \
+            len(paddings)
         assert conv_normalization_type in {'none', 'batch', 'layer'}
         assert fc_normalization_type in {'none', 'batch', 'layer'}
         assert pool_type in {'none', 'max2d'}
@@ -62,13 +62,15 @@ class CNN(PyTorchModule):
         self.conv_normalization_type = conv_normalization_type
         self.fc_normalization_type = fc_normalization_type
         self.added_fc_input_size = added_fc_input_size
-        self.conv_input_length = self.input_width * self.input_height * self.input_channels
+        self.conv_input_length = self.input_width * \
+            self.input_height * self.input_channels
         self.output_conv_channels = output_conv_channels
         self.pool_type = pool_type
 
         self.aux_output_size = aux_output_size
 
-        self.aux_weight = nn.Parameter(torch.ones(self.aux_output_size), requires_grad=True)
+        self.aux_weight = nn.Parameter(torch.ones(
+            self.aux_output_size), requires_grad=True)
 
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
@@ -126,7 +128,8 @@ class CNN(PyTorchModule):
             fc_input_size += added_fc_input_size
             for idx, hidden_size in enumerate(hidden_sizes):
                 if idx == 1:
-                    fc_layer = nn.Linear(fc_input_size, hidden_size+self.aux_output_size)
+                    fc_layer = nn.Linear(
+                        fc_input_size, hidden_size+self.aux_output_size)
                 else:
                     fc_layer = nn.Linear(fc_input_size, hidden_size)
 
@@ -158,7 +161,7 @@ class CNN(PyTorchModule):
 
         #image = h.reshape((140, 140, 1)).cpu().numpy().copy()
         #cv2.imshow('goal', image)
-        #cv2.waitKey(10)
+        # cv2.waitKey(10)
 
         h = self.apply_forward_conv(h)
 
@@ -175,7 +178,7 @@ class CNN(PyTorchModule):
             )
             h = torch.cat((h, extra_fc_input), dim=1)
         h, h_aux = self.apply_forward_fc(h)
-        
+
         #print("last hidden", h.shape, h_aux.shape)
         #print("aux output", h2)
 
@@ -198,8 +201,8 @@ class CNN(PyTorchModule):
     def apply_forward_fc(self, h):
         for i, layer in enumerate(self.fc_layers):
             if i == 2:
-                h_aux = h[:,-self.aux_output_size:]
-                h = h[:,:-self.aux_output_size:]
+                h_aux = h[:, -self.aux_output_size:]
+                h = h[:, :-self.aux_output_size:]
 
             h = layer(h)
             if self.fc_normalization_type != 'none':
@@ -212,6 +215,7 @@ class ConcatCNN(CNN):
     """
     Concatenate inputs along dimension and then pass through MLP.
     """
+
     def __init__(self, *args, dim=1, **kwargs):
         super().__init__(*args, **kwargs)
         self.dim = dim
@@ -287,9 +291,9 @@ class BasicCNN(PyTorchModule):
             pool_paddings=None,
     ):
         assert len(kernel_sizes) == \
-               len(n_channels) == \
-               len(strides) == \
-               len(paddings)
+            len(n_channels) == \
+            len(strides) == \
+            len(paddings)
         assert normalization_type in {'none', 'batch', 'layer'}
         assert pool_type in {'none', 'max2d'}
         if pool_type == 'max2d':
@@ -304,7 +308,8 @@ class BasicCNN(PyTorchModule):
             hidden_activation = activation_from_string(hidden_activation)
         self.hidden_activation = hidden_activation
         self.normalization_type = normalization_type
-        self.conv_input_length = self.input_width * self.input_height * self.input_channels
+        self.conv_input_length = self.input_width * \
+            self.input_height * self.input_channels
         self.pool_type = pool_type
 
         self.conv_layers = nn.ModuleList()
