@@ -5,14 +5,9 @@ import gym
 import numpy as np
 import cloudpickle
 import inspect
-import pickle
 from typing import Sequence, Optional, List, Union
-import os
-import psutil
-from threadpoolctl import threadpool_info, threadpool_limits
-from pprint import pprint
 
-def _worker(remote, parent_remote, env_fn_wrapper, verbose=False):
+def _worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
     env = env_fn_wrapper.var()
     while True:

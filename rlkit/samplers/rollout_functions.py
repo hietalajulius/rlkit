@@ -2,7 +2,6 @@ from functools import partial
 
 import numpy as np
 import copy
-import cv2
 
 create_rollout_function = partial
 
@@ -68,94 +67,18 @@ def contextual_rollout(
     )
     return paths
 
-def vec_env_rollout(
-        env,
-        agent,
-        processes=1,
-        max_path_length=np.inf,
-        preprocess_obs_for_policy_fn=None,
-        get_action_kwargs={}
-):
-    if preprocess_obs_for_policy_fn is None:
-        preprocess_obs_for_policy_fn = lambda x: x
-    
-    paths = []
-    for _ in range(processes):
-        path = dict(
-            observations=[],
-            actions=[],
-            rewards=[],
-            next_observations=[],
-            terminals=[],
-            agent_infos=[],
-            env_infos=[],
-        )
-        paths.append(path)
-
-    #raw_obs = []
-    #raw_next_obs = []
-    path_length = 0
-    agent.reset()
-    o = env.reset()
-
-    while path_length < max_path_length:
-        o_for_agent = preprocess_obs_for_policy_fn(o)
-        a = agent.get_actions(o_for_agent, **get_action_kwargs)
-        agent_info = [{} for _ in range(processes)]
-
-        next_o, r, d, env_info = env.step(copy.deepcopy(a))
-
-        for idx, path_dict in enumerate(paths):
-            obs_dict = dict()
-            next_obs_dict = dict()
-            for key in o.keys():
-                obs_dict[key] = o[key][idx]
-                next_obs_dict[key] = next_o[key][idx]
-            path_dict['observations'].append(obs_dict)
-            path_dict['rewards'].append(r[idx])
-            path_dict['terminals'].append(d[idx])
-            path_dict['actions'].append(a[idx])
-            path_dict['next_observations'].append(next_obs_dict)
-            path_dict['agent_infos'].append(agent_info[idx])
-            path_dict['env_infos'].append(env_info[idx])
-
-        path_length += 1
-        #if d:
-            #break
-            #TODO Figure out terminals handling
-        o = next_o
-
-    for idx, path_dict in enumerate(paths):
-        path_dict['actions'] = np.array(path_dict['actions'])
-        path_dict['observations'] = np.array(path_dict['observations'])
-        path_dict['next_observations'] = np.array(path_dict['next_observations'])
-        path_dict['rewards'] = np.array(path_dict['rewards'])
-        path_dict['terminals'] = np.array(path_dict['terminals']).reshape(-1, 1)
-    
-        if len(path_dict['actions'].shape) == 1:
-            path_dict['actions'] = np.expand_dims(path_dict['actions'], 1)
-
-        if len(path_dict['rewards'].shape) == 1:
-            path_dict['rewards'] = path_dict['rewards'].reshape(-1, 1)
-
-
-    return paths
 
 def rollout(
         env,
         agent,
         max_path_length=np.inf,
         render=False,
-        image_capture=False,
         render_kwargs=None,
         preprocess_obs_for_policy_fn=None,
         get_action_kwargs=None,
         return_dict_obs=False,
         full_o_postprocess_func=None,
         reset_callback=None,
-        observation_key=None,
-        desired_goal_key=None,
-        additional_keys=None
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -175,37 +98,21 @@ def rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
-    next_o = o #TODO: del this, prob does not change issue
     if reset_callback:
         reset_callback(env, agent, o)
     if render:
         env.render(**render_kwargs)
     while path_length < max_path_length:
         raw_obs.append(o)
-        #o_for_agent = preprocess_obs_for_policy_fn(o)
-        o_for_agent = o[observation_key]
-        for key in additional_keys:
-            o_for_agent = np.hstack((o_for_agent, o[key]))
-        o_for_agent = np.hstack((o_for_agent, o[desired_goal_key]))
-        a,  agent_info = agent.get_action(o_for_agent, **get_action_kwargs)
+        o_for_agent = preprocess_obs_for_policy_fn(o)
+        a, agent_info = agent.get_action(o_for_agent, **get_action_kwargs)
 
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        do_not_use, r, d, env_info = env.step(copy.deepcopy(a))
-        #print("Do not use...")
-
+        next_o, r, d, env_info = env.step(copy.deepcopy(a))
         if render:
             env.render(**render_kwargs)
-  
-            #image_obs = env.render(width=100, height=100, mode='rgb_array')
-            #cv2.imshow('env', image_obs)
-            #cv2.imshow('env', cv2.cvtColor(image_obs, cv2.COLOR_RGB2BGR))
-            #cv2.waitKey(1)
-            if image_capture:
-                img = copy.deepcopy(env.render(**render_kwargs))
-                cv2.imwrite('images/'+str(path_length)+'.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-            
         observations.append(o)
         rewards.append(r)
         terminals.append(d)

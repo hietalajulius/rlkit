@@ -186,7 +186,7 @@ class VectorizedKeyPathCollector(MdpPathCollector):
             desired_goal_key='desired_goal',
             additional_keys=[],
             goal_sampling_mode=None,
-            processes=None,
+            processes=1,
             **kwargs
     ):
         def obs_processor(o):
