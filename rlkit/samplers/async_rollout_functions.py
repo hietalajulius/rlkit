@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 
+
 def vec_env_rollout(
         env,
         agent,
@@ -10,7 +11,8 @@ def vec_env_rollout(
         get_action_kwargs={}
 ):
     if preprocess_obs_for_policy_fn is None:
-        preprocess_obs_for_policy_fn = lambda x: x
+        def preprocess_obs_for_policy_fn(x):
+            return x
     paths = []
     for _ in range(processes):
         path = dict(
@@ -29,7 +31,7 @@ def vec_env_rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
-    #TODO: enough to reset?
+    # TODO: enough to reset?
 
     while path_length < max_path_length:
         o_for_agent = preprocess_obs_for_policy_fn(o)
@@ -53,23 +55,24 @@ def vec_env_rollout(
             path_dict['env_infos'].append(env_info[idx])
 
         path_length += 1
-        #if d:
-            #break
-            #TODO Figure out terminals handling
+        # if d:
+        # break
+        # TODO Figure out terminals handling
         o = next_o
 
     for idx, path_dict in enumerate(paths):
         path_dict['actions'] = np.array(path_dict['actions'])
         path_dict['observations'] = np.array(path_dict['observations'])
-        path_dict['next_observations'] = np.array(path_dict['next_observations'])
+        path_dict['next_observations'] = np.array(
+            path_dict['next_observations'])
         path_dict['rewards'] = np.array(path_dict['rewards'])
-        path_dict['terminals'] = np.array(path_dict['terminals']).reshape(-1, 1)
-    
+        path_dict['terminals'] = np.array(
+            path_dict['terminals']).reshape(-1, 1)
+
         if len(path_dict['actions'].shape) == 1:
             path_dict['actions'] = np.expand_dims(path_dict['actions'], 1)
 
         if len(path_dict['rewards'].shape) == 1:
             path_dict['rewards'] = path_dict['rewards'].reshape(-1, 1)
-
 
     return paths

@@ -34,7 +34,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             replay_buffer: ReplayBuffer = None,
             demo_buffer: ReplayBuffer = None,
             demo_paths = None
-    ):  
+    ):
         self.trainer = trainer
         self.expl_env = exploration_env
         self.eval_env = evaluation_env
@@ -66,11 +66,11 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         gt.stamp('saving')
         self._log_stats(epoch)
 
-        if not self.expl_data_collector == None:
+        if not self.expl_data_collector is None:
             self.expl_data_collector.end_epoch(epoch)
-        if not self.eval_data_collector == None:
+        if not self.eval_data_collector is None:
             self.eval_data_collector.end_epoch(epoch)
-        if not self.replay_buffer == None:
+        if not self.replay_buffer is None:
             self.replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
 
@@ -81,13 +81,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
-        if not self.expl_data_collector == None:
+        if not self.expl_data_collector is None:
             for k, v in self.expl_data_collector.get_snapshot().items():
                 snapshot['exploration/' + k] = v
-        if not self.eval_data_collector == None:
+        if not self.eval_data_collector is None:
             for k, v in self.eval_data_collector.get_snapshot().items():
                 snapshot['evaluation/' + k] = v
-        if not self.replay_buffer == None:
+        if not self.replay_buffer is None:
             for k, v in self.replay_buffer.get_snapshot().items():
                 snapshot['replay_buffer/' + k] = v
         return snapshot
@@ -99,7 +99,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         Replay Buffer
         """
         
-        if not self.replay_buffer == None:
+        if not self.replay_buffer is None:
             logger.record_dict(
                 self.replay_buffer.get_diagnostics(),
                 prefix='replay_buffer/'
@@ -113,7 +113,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Exploration
         """
-        if not self.expl_data_collector == None:
+        if not self.expl_data_collector is None:
             logger.record_dict(
                 self.expl_data_collector.get_diagnostics(),
                 prefix='exploration/'
@@ -123,7 +123,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(expl_paths),
                 prefix="exploration/",
             )
-        if not self.expl_env == None:
+        if not self.expl_env is None:
             if hasattr(self.expl_env, 'get_diagnostics'):
                 logger.record_dict(
                     self.expl_env.get_diagnostics(expl_paths),
@@ -133,7 +133,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Evaluation
         """
-        if not self.eval_data_collector == None:
+        if not self.eval_data_collector is None:
             logger.record_dict(
                 self.eval_data_collector.get_diagnostics(),
                 prefix='evaluation/',
@@ -144,14 +144,14 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 prefix="evaluation/",
             )
             self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(eval_paths)['env_infos/final/is_success Mean'], epoch)
-        if not self.eval_env == None:
+        if not self.eval_env is None:
             if hasattr(self.eval_env, 'get_diagnostics'):
                 logger.record_dict(
                     self.eval_env.get_diagnostics(eval_paths),
                     prefix='evaluation/',
                 )
         
-        if not self.demo_paths == None:
+        if not self.demo_paths is None:
             print("Logging demo path stats")
             logger.record_dict(
                 eval_util.get_generic_path_information(self.demo_paths),
@@ -178,4 +178,4 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         :param mode: If True, training will happen (e.g. set the dropout
         probabilities to not all ones).
         """
-        pass
+        
