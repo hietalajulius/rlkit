@@ -1,5 +1,5 @@
 import torch
-from torch import nn as nn
+from torch import nn
 
 from rlkit.pythonplusplus import identity
 
@@ -7,8 +7,6 @@ import numpy as np
 from rlkit.policies.base import Policy
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
 from rlkit.torch.core import eval_np
-import cv2
-import copy
 
 
 class CNN(nn.Module):
@@ -35,9 +33,9 @@ class CNN(nn.Module):
         if hidden_sizes is None:
             hidden_sizes = []
         assert len(kernel_sizes) == \
-               len(n_channels) == \
-               len(strides) == \
-               len(paddings)
+            len(n_channels) == \
+            len(strides) == \
+            len(paddings)
         super().__init__()
 
         self.hidden_sizes = hidden_sizes
@@ -50,7 +48,8 @@ class CNN(nn.Module):
         self.batch_norm_conv = batch_norm_conv
         self.batch_norm_fc = batch_norm_fc
         self.added_fc_input_size = added_fc_input_size
-        self.conv_input_length = self.input_width * self.input_height * self.input_channels
+        self.conv_input_length = self.input_width * \
+            self.input_height * self.input_channels
 
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
@@ -59,7 +58,8 @@ class CNN(nn.Module):
 
         self.aux_output_size = aux_output_size
 
-        self.aux_weight = nn.Parameter(torch.ones(self.aux_output_size), requires_grad=True)
+        self.aux_weight = nn.Parameter(torch.ones(
+            self.aux_output_size), requires_grad=True)
 
         for out_channels, kernel_size, stride, padding in \
                 zip(n_channels, kernel_sizes, strides, paddings):
@@ -88,7 +88,8 @@ class CNN(nn.Module):
 
         for idx, hidden_size in enumerate(hidden_sizes):
             if idx == 1:
-                fc_layer = nn.Linear(fc_input_size, hidden_size+self.aux_output_size)
+                fc_layer = nn.Linear(
+                    fc_input_size, hidden_size+self.aux_output_size)
             else:
                 fc_layer = nn.Linear(fc_input_size, hidden_size)
 
@@ -123,7 +124,7 @@ class CNN(nn.Module):
         #image = copy.deepcopy(h[0].cpu().numpy().reshape(84,84,3))
         #cv2.imwrite('images/eating.png', cv2.cvtColor(image*255, cv2.COLOR_RGB2BGR))
         #cv2.imshow('env', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-        #cv2.waitKey(1)
+        # cv2.waitKey(1)
 
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers,
                                use_batch_norm=self.batch_norm_conv)
@@ -132,14 +133,14 @@ class CNN(nn.Module):
         if fc_input:
             h = torch.cat((h, extra_fc_input), dim=1)
 
-        #h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers,
-                               #use_batch_norm=self.batch_norm_fc)
+        # h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers,
+            # use_batch_norm=self.batch_norm_fc)
         h = self.fc_layers[0](h)
         h = self.hidden_activation(h)
 
         h = self.fc_layers[1](h)
-        h1 = h[:,:-self.aux_output_size]
-        h2 = h[:,-self.aux_output_size:]
+        h1 = h[:, :-self.aux_output_size]
+        h2 = h[:, -self.aux_output_size:]
 
         h = self.hidden_activation(h1)
         h1 = self.fc_layers[2](h1)
@@ -160,42 +161,6 @@ class CNN(nn.Module):
             h = self.hidden_activation(h)
         return h
 
-class CNNPolicy(CNN, Policy):
-    """
-    A simpler interface for creating policies.
-    """
-
-    def __init__(
-            self,
-            *args,
-            obs_normalizer: TorchFixedNormalizer = None,
-            **kwargs
-    ):
-        super().__init__(*args, **kwargs)
-        self.obs_normalizer = obs_normalizer
-
-    def forward(self, obs,  **kwargs):
-        if self.obs_normalizer and self.added_fc_input_size:
-            conv_input = obs.narrow(start=0,
-                                  length=self.conv_input_length,
-                                  dim=1).contiguous()
-            extra_fc_input = obs.narrow(start=self.conv_input_length,
-                                          length=self.added_fc_input_size,
-                                          dim=1)
-            extra_fc_input = self.obs_normalizer.normalize(extra_fc_input)
-            obs = torch.cat((conv_input,extra_fc_input), dim=1)
-
-        return super().forward(obs, **kwargs)
-
-    def get_action(self, obs_np):
-        #print("Getting action, obs mean:", np.mean(obs_np))
-        # make sure things have the same form that come through here
-        actions, aux_output = self.get_actions(obs_np[None])
-        return actions[0, :], aux_output[0, :], {}
-
-    def get_actions(self, obs):
-        return eval_np(self, obs)
-        
 
 class TwoHeadDCNN(nn.Module):
     def __init__(
@@ -224,9 +189,9 @@ class TwoHeadDCNN(nn.Module):
             output_activation=identity,
     ):
         assert len(kernel_sizes) == \
-               len(n_channels) == \
-               len(strides) == \
-               len(paddings)
+            len(n_channels) == \
+            len(strides) == \
+            len(paddings)
         super().__init__()
 
         self.hidden_sizes = hidden_sizes
@@ -236,7 +201,8 @@ class TwoHeadDCNN(nn.Module):
         self.deconv_input_width = deconv_input_width
         self.deconv_input_height = deconv_input_height
         self.deconv_input_channels = deconv_input_channels
-        deconv_input_size = self.deconv_input_channels * self.deconv_input_height * self.deconv_input_width
+        deconv_input_size = self.deconv_input_channels * \
+            self.deconv_input_height * self.deconv_input_width
         self.batch_norm_deconv = batch_norm_deconv
         self.batch_norm_fc = batch_norm_fc
 
