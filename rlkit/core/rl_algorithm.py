@@ -27,13 +27,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
-            exploration_env = None,
-            evaluation_env = None,
+            exploration_env=None,
+            evaluation_env=None,
             exploration_data_collector: DataCollector = None,
             evaluation_data_collector: DataCollector = None,
             replay_buffer: ReplayBuffer = None,
             demo_buffer: ReplayBuffer = None,
-            demo_paths = None
+            demo_paths=None
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -81,9 +81,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
+
+        # TODO: figure this our for multiprocess env
+        ''' 
         if not self.expl_data_collector is None:
             for k, v in self.expl_data_collector.get_snapshot().items():
                 snapshot['exploration/' + k] = v
+        '''
         if not self.eval_data_collector is None:
             for k, v in self.eval_data_collector.get_snapshot().items():
                 snapshot['evaluation/' + k] = v
@@ -98,7 +102,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Replay Buffer
         """
-        
+
         if not self.replay_buffer is None:
             logger.record_dict(
                 self.replay_buffer.get_diagnostics(),
@@ -118,6 +122,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 self.expl_data_collector.get_diagnostics(),
                 prefix='exploration/'
             )
+            # TODO: figure out path saves to avoid memory leaks
             expl_paths = self.expl_data_collector.get_epoch_paths()
             logger.record_dict(
                 eval_util.get_generic_path_information(expl_paths),
@@ -129,7 +134,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                     self.expl_env.get_diagnostics(expl_paths),
                     prefix='exploration/',
                 )
-        
+
         """
         Evaluation
         """
@@ -143,14 +148,15 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(eval_paths),
                 prefix="evaluation/",
             )
-            self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(eval_paths)['env_infos/final/is_success Mean'], epoch)
+            self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(
+                eval_paths)['env_infos/final/is_success Mean'], epoch)
         if not self.eval_env is None:
             if hasattr(self.eval_env, 'get_diagnostics'):
                 logger.record_dict(
                     self.eval_env.get_diagnostics(eval_paths),
                     prefix='evaluation/',
                 )
-        
+
         if not self.demo_paths is None:
             print("Logging demo path stats")
             logger.record_dict(
@@ -158,9 +164,9 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 prefix="evaluation/demonstrations/",
             )
 
-        
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():
-            self.writer.add_scalar('test/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
+            self.writer.add_scalar(
+                'test/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
         print("Logged tensorboard")
 
         """
@@ -178,4 +184,3 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         :param mode: If True, training will happen (e.g. set the dropout
         probabilities to not all ones).
         """
-        

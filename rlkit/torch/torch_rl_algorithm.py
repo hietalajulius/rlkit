@@ -5,7 +5,7 @@ from typing import Iterable
 from torch import nn as nn
 
 from rlkit.core.batch_rl_algorithm import BatchRLAlgorithm
-from rlkit.core.batch_rl_algorithm import AsyncBatchRLAlgorithm
+from rlkit.core.async_batch_rl_algorithm import AsyncBatchRLAlgorithm
 from rlkit.core.online_rl_algorithm import OnlineRLAlgorithm
 from rlkit.core.trainer import Trainer
 from rlkit.torch.core import np_to_pytorch_batch
@@ -30,6 +30,7 @@ class TorchBatchRLAlgorithm(BatchRLAlgorithm):
         for net in self.trainer.networks:
             net.train(mode)
 
+
 class TorchAsyncBatchRLAlgorithm(AsyncBatchRLAlgorithm):
     def to(self, device):
         for net in self.trainer.networks:
@@ -52,7 +53,6 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
             self.train_from_torch(batch, demo_batch)
         else:
             self.train_from_torch(batch)
-        
 
     def get_diagnostics(self):
         return OrderedDict([

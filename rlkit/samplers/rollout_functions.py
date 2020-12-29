@@ -2,6 +2,8 @@ from functools import partial
 
 import numpy as np
 import copy
+import os
+import glob
 
 create_rollout_function = partial
 
@@ -85,7 +87,7 @@ def rollout(
     if get_action_kwargs is None:
         get_action_kwargs = {}
     if preprocess_obs_for_policy_fn is None:
-        preprocess_obs_for_policy_fn = lambda x: x
+        def preprocess_obs_for_policy_fn(x): return x
     raw_obs = []
     raw_next_obs = []
     observations = []
@@ -98,10 +100,17 @@ def rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
+
+    if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
+        files = glob.glob('images/*')
+        for f in files:
+            os.remove(f)
+    elif render:
+        env.render(**render_kwargs)
+
     if reset_callback:
         reset_callback(env, agent, o)
-    if render:
-        env.render(**render_kwargs)
+
     while path_length < max_path_length:
         raw_obs.append(o)
         o_for_agent = preprocess_obs_for_policy_fn(o)
@@ -111,8 +120,13 @@ def rollout(
             full_o_postprocess_func(env, agent, o)
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
+        # print("Step")
         if render:
-            env.render(**render_kwargs)
+            if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
+                env.render(**render_kwargs, filename='images/' +
+                           str(path_length) + '.png')
+            else:
+                env.render(**render_kwargs)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)

@@ -39,6 +39,7 @@ def vec_env_rollout(
         agent_info = [{} for _ in range(processes)]
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
+        #print("Async step", d.shape)
 
         for idx, path_dict in enumerate(paths):
             obs_dict = dict()

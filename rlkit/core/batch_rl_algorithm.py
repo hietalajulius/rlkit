@@ -4,6 +4,7 @@ import gtimer as gt
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
+import time
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -61,18 +62,27 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 discard_incomplete_paths=True,
             )
             gt.stamp('evaluation sampling')
+            print("Epoch", epoch)
 
-            for _ in range(self.num_train_loops_per_epoch):
+            for cycle in range(self.num_train_loops_per_epoch):
+                print("Cycle", cycle)
+                start_cycle = time.time()
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
                     self.num_expl_steps_per_train_loop,
                     discard_incomplete_paths=False,
                 )
                 gt.stamp('exploration sampling', unique=False)
+                collection_done = time.time()
+                collection_time = collection_done - start_cycle
+                print("Took to collect", collection_time)
 
                 self.replay_buffer.add_paths(new_expl_paths)
                 gt.stamp('data storing', unique=False)
 
+                storing_done = time.time()
+                collection_time = storing_done - collection_done
+                print("Took to collect", collection_time)
                 self.training_mode(True)
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
@@ -80,5 +90,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
-
+                train_time = time.time() - collection_done
+                print("Took to train", train_time)
             self._end_epoch(epoch)

@@ -5,7 +5,8 @@ import numpy as np
 
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.data_collector.base import PathCollector
-from rlkit.samplers.rollout_functions import rollout, vec_env_rollout
+from rlkit.samplers.rollout_functions import rollout
+from rlkit.samplers.async_rollout_functions import vec_env_rollout
 import glob
 import os
 
@@ -19,7 +20,7 @@ class MdpPathCollector(PathCollector):
             render=False,
             render_kwargs=None,
             rollout_fn=rollout,
-            save_env_in_snapshot=False, #WTFFF
+            save_env_in_snapshot=False,  # WTFFF
     ):
         if render_kwargs is None:
             render_kwargs = {}
@@ -44,27 +45,19 @@ class MdpPathCollector(PathCollector):
     ):
         paths = []
         num_steps_collected = 0
-        image_capture = False
         while num_steps_collected < num_steps:
-            if num_steps_collected == 0 and self._render:
-                print("Image capture")
-                files = glob.glob('images/*')
-                for f in files:
-                    os.remove(f)
-                image_capture = True
-            else:
-                image_capture = False
             max_path_length_this_loop = min(  # Do not go over num_steps
                 max_path_length,
                 num_steps - num_steps_collected,
             )
-            max_path_length_this_loop = max_path_length #Override, always perform max path length steps
+            # TODO: Parametrize override, always perform max path length steps
+            #max_path_length_this_loop = max_path_length
+
             path = self._rollout_fn(
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
                 render=self._render,
-                image_capture=image_capture,
                 render_kwargs=self._render_kwargs,
             )
             path_len = len(path['actions'])
@@ -76,6 +69,7 @@ class MdpPathCollector(PathCollector):
                 break
             num_steps_collected += path_len
             paths.append(path)
+            print("Num of collected steps", num_steps_collected)
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
@@ -108,6 +102,7 @@ class MdpPathCollector(PathCollector):
             snapshot_dict['env'] = self._env
         return snapshot_dict
 
+
 class KeyPathCollector(MdpPathCollector):
     def __init__(
             self,
@@ -118,65 +113,34 @@ class KeyPathCollector(MdpPathCollector):
             goal_sampling_mode=None,
             **kwargs
     ):
-        
-        super().__init__(*args, rollout_fn=None, **kwargs)
+        def obs_processor(o):
+            obs = o[observation_key]
+            for additional_key in additional_keys:
+                obs = np.hstack((obs, o[additional_key]))
+
+            return np.hstack((obs, o[desired_goal_key]))
+
+        rollout_fn = partial(
+            rollout,
+            preprocess_obs_for_policy_fn=obs_processor,
+        )
+        super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
         self._observation_key = observation_key
         self._desired_goal_key = desired_goal_key
-        self._additional_keys = additional_keys
         self._goal_sampling_mode = goal_sampling_mode
 
-    def collect_new_paths(
-            self,
-            max_path_length,
-            num_steps,
-            discard_incomplete_paths,
-    ):  
+    def collect_new_paths(self, *args, **kwargs):
         self._env.goal_sampling_mode = self._goal_sampling_mode
-        paths = []
-        num_steps_collected = 0
-        image_capture = False
-        while num_steps_collected < num_steps:
-            if num_steps_collected == 0 and self._render:
-                print("Image capture")
-                files = glob.glob('images/*')
-                for f in files:
-                    os.remove(f)
-                image_capture = True
-            else:
-                image_capture = False
-            max_path_length_this_loop = min(  # Do not go over num_steps
-                max_path_length,
-                num_steps - num_steps_collected,
-            )
-            max_path_length_this_loop = max_path_length #Override, always perform max path length steps
-            path = rollout(
-                self._env,
-                self._policy,
-                max_path_length=max_path_length_this_loop,
-                render=self._render,
-                image_capture=image_capture,
-                render_kwargs=self._render_kwargs,
-                observation_key=self._observation_key,
-                desired_goal_key=self._desired_goal_key,
-                additional_keys=self._additional_keys
-            )
-            path_len = len(path['actions'])
-            if (
-                    path_len != max_path_length
-                    and not path['terminals'][-1]
-                    and discard_incomplete_paths
-            ):
-                break
-            num_steps_collected += path_len
-            paths.append(path)
-        self._num_paths_total += len(paths)
-        self._num_steps_total += num_steps_collected
-        #self._epoch_paths.extend(paths)
-        return paths
-
+        return super().collect_new_paths(*args, **kwargs)
 
     def get_snapshot(self):
-        pass
+        snapshot = super().get_snapshot()
+        snapshot.update(
+            observation_key=self._observation_key,
+            desired_goal_key=self._desired_goal_key,
+        )
+        return snapshot
+
 
 class VectorizedKeyPathCollector(MdpPathCollector):
     def __init__(
@@ -207,13 +171,12 @@ class VectorizedKeyPathCollector(MdpPathCollector):
         self._additional_keys = additional_keys
         self._goal_sampling_mode = goal_sampling_mode
 
-
     def collect_new_paths(
             self,
             max_path_length,
             num_steps,
             discard_incomplete_paths=False,
-    ):  
+    ):
         self._env.goal_sampling_mode = self._goal_sampling_mode
         paths = []
         num_steps_collected = 0
@@ -230,16 +193,21 @@ class VectorizedKeyPathCollector(MdpPathCollector):
 
             num_steps_collected += collected_paths_len
             paths += collected_paths
+            print("Num of collected steps", num_steps_collected)
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
-        #self._epoch_paths.extend(paths)
+
+        stripped_paths = []
+        for path in paths:
+            stripped_path = dict(
+                rewards=path['rewards'], actions=path['actions'])
+            stripped_paths.append(stripped_path)
+
+        self._epoch_paths.extend(stripped_paths)
         return paths
 
     def get_snapshot(self):
         pass
-
-
-
 
 
 class GoalConditionedPathCollector(MdpPathCollector):
