@@ -5,6 +5,7 @@ import time
 import copy
 import os
 import psutil
+import glob
 
 
 class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -17,6 +18,8 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_eval_steps_per_epoch,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
+            evaluation_data_collector,
+            num_collected_steps,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             demo_paths=None,
@@ -26,8 +29,12 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             batch_processed_event=None,
     ):
         super().__init__(
-            trainer
+            trainer,
+            evaluation_data_collector=evaluation_data_collector
+
         )
+        self.train_collect_ratio = 4
+        self.num_collected_steps = num_collected_steps
         self.batch_queue = batch_queue
         self.policy_weights_queue = policy_weights_queue
         self.new_policy_event = new_policy_event
@@ -42,7 +49,6 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.min_num_steps_before_training = min_num_steps_before_training
 
     def _train(self):
-        process = psutil.Process(os.getpid())
         if self.min_num_steps_before_training > 0:
             init_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
@@ -56,19 +62,40 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.trainer._base_trainer.policy.state_dict())
         self.policy_weights_queue.put(temp_policy_weights)
         self.new_policy_event.set()
+
         print("Initialized policy")
-        print("Memory usage in train", process.memory_info().rss/10E9, "GB")
+        # TODO: Use for memory debug
+        #process = psutil.Process(os.getpid())
+        #print("Memory usage in train", process.memory_info().rss/10E9, "GB")
 
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
+            files = glob.glob('success_images/*')
+            for f in files:
+                os.remove(f)
+
+            self.eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+                discard_incomplete_paths=True,
+            )
+            gt.stamp('evaluation sampling')
 
             print("Epoch", epoch)
-            # TODO: Add eval path collection
             for cycle in range(self.num_train_loops_per_epoch):
-                print("Memory usage in train",
-                      process.memory_info().rss/10E9, "GB")
+
+                # TODO: Use for memory debug
+                #print("Memory usage in train",process.memory_info().rss/10E9, "GB")
+                train_steps = epoch*self.num_train_loops_per_epoch * \
+                    self.num_trains_per_train_loop + cycle*self.num_trains_per_train_loop
+
+                while train_steps > self.train_collect_ratio * self.num_collected_steps.value:
+                    print("Waiting collector to catch up...",
+                          train_steps, self.num_collected_steps.value)
+                    time.sleep(3)
+
                 start_cycle = time.time()
                 self.training_mode(True)
                 sam_times_cycle = 0
@@ -93,7 +120,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                             self.trainer._base_trainer.policy.state_dict())
                         self.policy_weights_queue.put(temp_policy_weights)
                         self.new_policy_event.set()
-                        print("Updated policy")
+                        #print("Updated policy")
                     if tren % 100 == 0:
                         print("--STATUS--")
                         print(tren, "/", self.num_trains_per_train_loop,
@@ -101,7 +128,9 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         print(tren, "/", self.num_trains_per_train_loop,
                               "Took to train:", train_train_time)
                         print("Total train steps so far:", epoch*self.num_train_loops_per_epoch *
-                              self.num_trains_per_train_loop + cycle*self.num_trains_per_train_loop + tren, "\n")
+                              self.num_trains_per_train_loop + cycle*self.num_trains_per_train_loop + tren)
+                        print("Total collected steps in train",
+                              self.num_collected_steps.value, "\n")
 
                     train_train_times_cycle += train_train_time
 
@@ -121,4 +150,4 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.training_mode(False)
                 self.trainer._base_trainer.policy.vers += 1
 
-            print("Ending epoch")
+            self._end_epoch(epoch)

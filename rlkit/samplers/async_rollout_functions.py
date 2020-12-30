@@ -26,12 +26,11 @@ def vec_env_rollout(
         )
         paths.append(path)
 
-    #raw_obs = []
-    #raw_next_obs = []
     path_length = 0
     agent.reset()
     o = env.reset()
-    # TODO: enough to reset?
+
+    done_indices = []
 
     while path_length < max_path_length:
         o_for_agent = preprocess_obs_for_policy_fn(o)
@@ -39,26 +38,30 @@ def vec_env_rollout(
         agent_info = [{} for _ in range(processes)]
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
-        #print("Async step", d.shape)
 
         for idx, path_dict in enumerate(paths):
-            obs_dict = dict()
-            next_obs_dict = dict()
-            for key in o.keys():
-                obs_dict[key] = o[key][idx]
-                next_obs_dict[key] = next_o[key][idx]
-            path_dict['observations'].append(obs_dict)
-            path_dict['rewards'].append(r[idx])
-            path_dict['terminals'].append(d[idx])
-            path_dict['actions'].append(a[idx])
-            path_dict['next_observations'].append(next_obs_dict)
-            path_dict['agent_infos'].append(agent_info[idx])
-            path_dict['env_infos'].append(env_info[idx])
+            if not idx in done_indices:
+                if d[idx]:
+                    done_indices.append(idx)
+
+                obs_dict = dict()
+                next_obs_dict = dict()
+                for key in o.keys():
+                    obs_dict[key] = o[key][idx]
+                    next_obs_dict[key] = next_o[key][idx]
+                path_dict['observations'].append(obs_dict)
+                path_dict['rewards'].append(r[idx])
+                path_dict['terminals'].append(d[idx])
+                path_dict['actions'].append(a[idx])
+                path_dict['next_observations'].append(next_obs_dict)
+                path_dict['agent_infos'].append(agent_info[idx])
+                path_dict['env_infos'].append(env_info[idx])
 
         path_length += 1
-        # if d:
-        # break
-        # TODO Figure out terminals handling
+
+        if len(done_indices) == processes:
+            break
+
         o = next_o
 
     for idx, path_dict in enumerate(paths):

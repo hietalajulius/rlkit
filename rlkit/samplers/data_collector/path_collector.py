@@ -69,7 +69,6 @@ class MdpPathCollector(PathCollector):
                 break
             num_steps_collected += path_len
             paths.append(path)
-            print("Num of collected steps", num_steps_collected)
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
@@ -174,14 +173,15 @@ class VectorizedKeyPathCollector(MdpPathCollector):
     def collect_new_paths(
             self,
             max_path_length,
-            num_steps,
+            num_vectorized_rollouts,
             discard_incomplete_paths=False,
     ):
         self._env.goal_sampling_mode = self._goal_sampling_mode
         paths = []
         num_steps_collected = 0
 
-        while num_steps_collected < num_steps:
+        # Only do num_vectorized_rollouts rollouts -> control collected amount outside
+        for _ in range(num_vectorized_rollouts):
             collected_paths = self._rollout_fn(
                 self._env,
                 self._policy,
@@ -193,10 +193,9 @@ class VectorizedKeyPathCollector(MdpPathCollector):
 
             num_steps_collected += collected_paths_len
             paths += collected_paths
-            print("Num of collected steps", num_steps_collected)
+
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
-
         stripped_paths = []
         for path in paths:
             stripped_path = dict(
