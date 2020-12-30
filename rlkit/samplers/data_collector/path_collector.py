@@ -173,15 +173,14 @@ class VectorizedKeyPathCollector(MdpPathCollector):
     def collect_new_paths(
             self,
             max_path_length,
-            num_vectorized_rollouts,
+            num_steps,
             discard_incomplete_paths=False,
     ):
         self._env.goal_sampling_mode = self._goal_sampling_mode
         paths = []
         num_steps_collected = 0
 
-        # Only do num_vectorized_rollouts rollouts -> control collected amount outside
-        for _ in range(num_vectorized_rollouts):
+        while num_steps_collected < num_steps:
             collected_paths = self._rollout_fn(
                 self._env,
                 self._policy,
@@ -194,6 +193,7 @@ class VectorizedKeyPathCollector(MdpPathCollector):
             num_steps_collected += collected_paths_len
             paths += collected_paths
 
+        # TODO: Above gives too many extra paths if early dones, which is ok ish
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         stripped_paths = []
