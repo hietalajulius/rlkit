@@ -5,6 +5,8 @@ from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
 import time
+import glob
+import os
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -56,6 +58,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
+            files = glob.glob('success_images/*')
+            for f in files:
+                os.remove(f)
             self.eval_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_eval_steps_per_epoch,

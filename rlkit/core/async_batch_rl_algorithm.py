@@ -65,6 +65,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         ):
 
             print("Epoch", epoch)
+            # TODO: Add eval path collection
             for cycle in range(self.num_train_loops_per_epoch):
                 print("Memory usage in train",
                       process.memory_info().rss/10E9, "GB")
