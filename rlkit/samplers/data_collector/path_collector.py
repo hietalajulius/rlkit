@@ -42,6 +42,7 @@ class MdpPathCollector(PathCollector):
             max_path_length,
             num_steps,
             discard_incomplete_paths,
+            image_capture=False
     ):
         paths = []
         num_steps_collected = 0
@@ -50,8 +51,7 @@ class MdpPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
-            # Only image capture first eval rollout
-            if 'image_capture' in self._render_kwargs.keys() and num_steps_collected > 0 and self._render_kwargs['image_capture']:
+            if image_capture:
                 render = False
                 render_kwargs = {}
             else:
@@ -144,6 +144,40 @@ class KeyPathCollector(MdpPathCollector):
             desired_goal_key=self._desired_goal_key,
         )
         return snapshot
+
+
+class EvalKeyPathCollector(KeyPathCollector):
+    def collect_new_paths(
+            self,
+            max_path_length,
+            num_rollouts,
+    ):
+        self._env.goal_sampling_mode = self._goal_sampling_mode
+        paths = []
+        num_steps_collected = 0
+        for i in range(num_rollouts):
+            print("Eval rollout", i+1)
+            if i == 0:
+                render = False
+                render_kwargs = {}
+            else:
+                render = self._render
+                render_kwargs = self._render_kwargs
+
+            path = self._rollout_fn(
+                self._env,
+                self._policy,
+                max_path_length=max_path_length,
+                render=render,
+                render_kwargs=render_kwargs,
+            )
+            path_len = len(path['actions'])
+            num_steps_collected += path_len
+            paths.append(path)
+        self._num_paths_total += len(paths)
+        self._num_steps_total += num_steps_collected
+        self._epoch_paths.extend(paths)
+        return paths
 
 
 class VectorizedKeyPathCollector(MdpPathCollector):

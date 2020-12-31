@@ -1,6 +1,7 @@
 import abc
 import gtimer as gt
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
+from rlkit.core import eval_util
 import time
 import copy
 import os
@@ -15,7 +16,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             batch_size,
             max_path_length,
             num_epochs,
-            num_eval_steps_per_epoch,
+            num_eval_rollouts_per_epoch,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
             evaluation_data_collector,
@@ -48,7 +49,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
-        self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
+        self.num_eval_rollouts_per_epoch = num_eval_rollouts_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
@@ -83,10 +84,13 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
             self.eval_data_collector.collect_new_paths(
                 self.max_path_length,
-                self.num_eval_steps_per_epoch,
-                discard_incomplete_paths=True,
+                self.num_eval_rollouts_per_epoch
             )
             gt.stamp('evaluation sampling')
+
+            eval_paths = self.eval_data_collector.get_epoch_paths()
+            print("EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
+                eval_paths)['env_infos/final/is_success Mean'])
 
             print("Epoch", epoch)
             for cycle in range(self.num_train_loops_per_epoch):

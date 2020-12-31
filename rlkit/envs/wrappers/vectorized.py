@@ -30,7 +30,8 @@ def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
             elif cmd == 'reset':
                 observation = env.reset()
                 remote.send(observation)
-                env_memory_usage.value = process.memory_info().rss/10E9
+                if not env_memory_usage is None:
+                    env_memory_usage.value = process.memory_info().rss/10E9
             elif cmd == 'render':
                 remote.send(env.render(data))
             elif cmd == 'close':
