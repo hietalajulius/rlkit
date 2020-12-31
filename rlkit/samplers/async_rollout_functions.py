@@ -34,7 +34,7 @@ def vec_env_rollout(
 
     while path_length < max_path_length:
         o_for_agent = preprocess_obs_for_policy_fn(o)
-        a, aux_output = agent.get_actions(o_for_agent, **get_action_kwargs)
+        a, _ = agent.get_actions(o_for_agent, **get_action_kwargs)
         agent_info = [{} for _ in range(processes)]
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))

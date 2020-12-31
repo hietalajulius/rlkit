@@ -124,9 +124,13 @@ def rollout(
         # print("Step")
         if render:
             if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
+                if not aux_output is None:
+                    env.set_aux_positions(
+                        aux_output[:, 0:3], aux_output[:, 3:6], aux_output[:, 6:9], aux_output[:, 9:12])
                 env.render(**render_kwargs, filename='images/' +
                            str(path_length) + '.png')
             else:
+                env.clear_aux_positions()
                 env.render(**render_kwargs)
         observations.append(o)
         rewards.append(r)

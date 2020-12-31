@@ -175,14 +175,22 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf1(value_obs, new_obs_actions),
             self.qf2(value_obs, new_obs_actions),
         )
-        policy_loss = (alpha*log_pi - q_new_actions).mean()
+
+        if not aux_output is None:
+            off = torch.cat((value_obs[:, :3], value_obs[:, 6:9],
+                             value_obs[:, 12:15], value_obs[:, 18:21]), dim=1) - aux_output
+            off_loss = (off**2).sum(dim=1).mean()
+            policy_loss = (alpha*log_pi - q_new_actions).mean() + \
+                0.001*off_loss
+        else:
+            policy_loss = (alpha*log_pi - q_new_actions).mean()
 
         """
         QF Loss
         """
         q1_pred = self.qf1(value_obs, actions)
         q2_pred = self.qf2(value_obs, actions)
-        next_dist, next_aux_output = self.policy(policy_next_obs)
+        next_dist, _ = self.policy(policy_next_obs)
         new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
         new_log_pi = new_log_pi.unsqueeze(-1)
         target_q_values = torch.min(
