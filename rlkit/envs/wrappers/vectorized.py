@@ -10,7 +10,7 @@ import psutil
 import os
 
 
-def _worker(remote, parent_remote, env_fn_wrapper):
+def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
     process = psutil.Process(os.getpid())
     print("Worker process PID", process)
     parent_remote.close()
@@ -30,6 +30,7 @@ def _worker(remote, parent_remote, env_fn_wrapper):
             elif cmd == 'reset':
                 observation = env.reset()
                 remote.send(observation)
+                env_memory_usage.value = process.memory_info().rss/10E9
             elif cmd == 'render':
                 remote.send(env.render(data))
             elif cmd == 'close':
@@ -434,7 +435,7 @@ class SubprocVecEnv(VecEnv):
            Defaults to 'forkserver' on available platforms, and 'spawn' otherwise.
     """
 
-    def __init__(self, env_fns, start_method=None):
+    def __init__(self, env_fns, env_mem_usages=None, start_method=None):
         self.waiting = False
         self.closed = False
         n_envs = len(env_fns)
@@ -450,8 +451,12 @@ class SubprocVecEnv(VecEnv):
         self.remotes, self.work_remotes = zip(
             *[ctx.Pipe(duplex=True) for _ in range(n_envs)])
         self.processes = []
-        for work_remote, remote, env_fn in zip(self.work_remotes, self.remotes, env_fns):
-            args = (work_remote, remote, CloudpickleWrapper(env_fn))
+        for i, (work_remote, remote, env_fn) in enumerate(zip(self.work_remotes, self.remotes, env_fns)):
+            if not env_mem_usages is None:
+                args = (work_remote, remote, CloudpickleWrapper(
+                    env_fn), env_mem_usages[i])
+            else:
+                args = (work_remote, remote, CloudpickleWrapper(env_fn))
             # daemon=True: if the main process crashes, we should not cause things to hang
             # pytype:disable=attribute-error
             process = ctx.Process(target=_worker, args=args, daemon=True)

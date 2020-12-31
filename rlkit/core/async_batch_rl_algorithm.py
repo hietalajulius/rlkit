@@ -20,6 +20,9 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_trains_per_train_loop,
             evaluation_data_collector,
             num_collected_steps,
+            buffer_memory_usage,
+            collector_memory_usage,
+            env_memory_usages,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             demo_paths=None,
@@ -35,6 +38,9 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         )
         self.train_collect_ratio = 4
         self.num_collected_steps = num_collected_steps
+        self.buffer_memory_usage = buffer_memory_usage
+        self.collector_memory_usage = collector_memory_usage
+        self.env_memory_usages = env_memory_usages
         self.batch_queue = batch_queue
         self.policy_weights_queue = policy_weights_queue
         self.new_policy_event = new_policy_event
@@ -65,9 +71,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.new_policy_event.set()
 
         print("Initialized policy")
-        # TODO: Use for memory debug
-        #process = psutil.Process(os.getpid())
-        #print("Memory usage in train", process.memory_info().rss/10E9, "GB")
+        process = psutil.Process(os.getpid())
 
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
@@ -131,7 +135,9 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         print("Total train steps so far:", epoch*self.num_train_loops_per_epoch *
                               self.num_trains_per_train_loop + cycle*self.num_trains_per_train_loop + tren)
                         print("Total collected steps in train",
-                              self.num_collected_steps.value, "\n")
+                              self.num_collected_steps.value)
+                        print("Memory usages, train:",
+                              process.memory_info().rss/10E9, "buffer:", self.buffer_memory_usage.value, "collector:", self.collector_memory_usage.value, "envs:", [emu.value for emu in self.env_memory_usages], "\n")
 
                     train_train_times_cycle += train_train_time
 
