@@ -50,15 +50,20 @@ class MdpPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
-            # TODO: Parametrize override, always perform max path length steps
-            #max_path_length_this_loop = max_path_length
+            # Only image capture first eval rollout
+            if 'image_capture' in self._render_kwargs.keys() and num_steps_collected > 0 and self._render_kwargs['image_capture']:
+                render = False
+                render_kwargs = {}
+            else:
+                render = self._render
+                render_kwargs = self._render_kwargs
 
             path = self._rollout_fn(
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
-                render=self._render,
-                render_kwargs=self._render_kwargs,
+                render=render,
+                render_kwargs=render_kwargs,
             )
             path_len = len(path['actions'])
             if (

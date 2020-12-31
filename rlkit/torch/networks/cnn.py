@@ -179,9 +179,6 @@ class CNN(PyTorchModule):
             h = torch.cat((h, extra_fc_input), dim=1)
         h, h_aux = self.apply_forward_fc(h)
 
-        #print("last hidden", h.shape, h_aux.shape)
-        #print("aux output", h2)
-
         h_aux = h_aux * self.aux_weight
 
         if return_last_activations:

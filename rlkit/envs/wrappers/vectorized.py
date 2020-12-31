@@ -6,8 +6,13 @@ import numpy as np
 import cloudpickle
 import inspect
 from typing import Sequence, Optional, List, Union
+import psutil
+import os
+
 
 def _worker(remote, parent_remote, env_fn_wrapper):
+    process = psutil.Process(os.getpid())
+    print("Worker process PID", process)
     parent_remote.close()
     env = env_fn_wrapper.var()
     while True:
@@ -41,7 +46,8 @@ def _worker(remote, parent_remote, env_fn_wrapper):
             elif cmd == 'set_attr':
                 remote.send(setattr(env, data[0], data[1]))
             else:
-                raise NotImplementedError("`{}` is not implemented in the worker".format(cmd))
+                raise NotImplementedError(
+                    "`{}` is not implemented in the worker".format(cmd))
         except EOFError:
             break
 
@@ -62,13 +68,16 @@ def tile_images(img_nhwc):
     new_height = int(np.ceil(np.sqrt(n_images)))
     # new_width was named W before
     new_width = int(np.ceil(float(n_images) / new_height))
-    img_nhwc = np.array(list(img_nhwc) + [img_nhwc[0] * 0 for _ in range(n_images, new_height * new_width)])
+    img_nhwc = np.array(list(
+        img_nhwc) + [img_nhwc[0] * 0 for _ in range(n_images, new_height * new_width)])
     # img_HWhwc
-    out_image = img_nhwc.reshape(new_height, new_width, height, width, n_channels)
+    out_image = img_nhwc.reshape(
+        new_height, new_width, height, width, n_channels)
     # img_HhWwc
     out_image = out_image.transpose(0, 2, 1, 3, 4)
     # img_Hh_Ww_c
-    out_image = out_image.reshape(new_height * height, new_width * width, n_channels)
+    out_image = out_image.reshape(
+        new_height * height, new_width * width, n_channels)
     return out_image
 
 
@@ -327,10 +336,12 @@ class VecEnvWrapper(VecEnv):
         """
         blocked_class = self.getattr_depth_check(name, already_found=False)
         if blocked_class is not None:
-            own_class = "{0}.{1}".format(type(self).__module__, type(self).__name__)
+            own_class = "{0}.{1}".format(
+                type(self).__module__, type(self).__name__)
             format_str = ("Error: Recursive attribute lookup for {0} from {1} is "
                           "ambiguous and hides attribute from {2}")
-            raise AttributeError(format_str.format(name, own_class, blocked_class))
+            raise AttributeError(format_str.format(
+                name, own_class, blocked_class))
 
         return self.getattr_recursive(name)
 
@@ -369,13 +380,15 @@ class VecEnvWrapper(VecEnv):
         all_attributes = self._get_all_attributes()
         if name in all_attributes and already_found:
             # this venv's attribute is being hidden because of a higher venv.
-            shadowed_wrapper_class = "{0}.{1}".format(type(self).__module__, type(self).__name__)
+            shadowed_wrapper_class = "{0}.{1}".format(
+                type(self).__module__, type(self).__name__)
         elif name in all_attributes and not already_found:
             # we have found the first reference to the attribute. Now check for duplicates.
             shadowed_wrapper_class = self.venv.getattr_depth_check(name, True)
         else:
             # this wrapper does not have the attribute. Keep searching.
-            shadowed_wrapper_class = self.venv.getattr_depth_check(name, already_found)
+            shadowed_wrapper_class = self.venv.getattr_depth_check(
+                name, already_found)
 
         return shadowed_wrapper_class
 
@@ -434,12 +447,14 @@ class SubprocVecEnv(VecEnv):
             start_method = 'forkserver' if forkserver_available else 'spawn'
         ctx = multiprocessing.get_context(start_method)
 
-        self.remotes, self.work_remotes = zip(*[ctx.Pipe(duplex=True) for _ in range(n_envs)])
+        self.remotes, self.work_remotes = zip(
+            *[ctx.Pipe(duplex=True) for _ in range(n_envs)])
         self.processes = []
         for work_remote, remote, env_fn in zip(self.work_remotes, self.remotes, env_fns):
             args = (work_remote, remote, CloudpickleWrapper(env_fn))
             # daemon=True: if the main process crashes, we should not cause things to hang
-            process = ctx.Process(target=_worker, args=args, daemon=True)  # pytype:disable=attribute-error
+            # pytype:disable=attribute-error
+            process = ctx.Process(target=_worker, args=args, daemon=True)
             process.start()
             self.processes.append(process)
             work_remote.close()
@@ -509,7 +524,8 @@ class SubprocVecEnv(VecEnv):
         """Call instance methods of vectorized environments."""
         target_remotes = self._get_target_remotes(indices)
         for remote in target_remotes:
-            remote.send(('env_method', (method_name, method_args, method_kwargs)))
+            remote.send(
+                ('env_method', (method_name, method_args, method_kwargs)))
         return [remote.recv() for remote in target_remotes]
 
     def _get_target_remotes(self, indices):
@@ -535,15 +551,19 @@ def _flatten_obs(obs, space):
             A flattened NumPy array or an OrderedDict or tuple of flattened numpy arrays.
             Each NumPy array has the environment index as its first axis.
     """
-    assert isinstance(obs, (list, tuple)), "expected list or tuple of observations per environment"
+    assert isinstance(
+        obs, (list, tuple)), "expected list or tuple of observations per environment"
     assert len(obs) > 0, "need observations from at least one environment"
 
     if isinstance(space, gym.spaces.Dict):
-        assert isinstance(space.spaces, OrderedDict), "Dict space must have ordered subspaces"
-        assert isinstance(obs[0], dict), "non-dict observation for environment with Dict observation space"
+        assert isinstance(
+            space.spaces, OrderedDict), "Dict space must have ordered subspaces"
+        assert isinstance(
+            obs[0], dict), "non-dict observation for environment with Dict observation space"
         return OrderedDict([(k, np.stack([o[k] for o in obs])) for k in space.spaces.keys()])
     elif isinstance(space, gym.spaces.Tuple):
-        assert isinstance(obs[0], tuple), "non-tuple observation for environment with Tuple observation space"
+        assert isinstance(
+            obs[0], tuple), "non-tuple observation for environment with Tuple observation space"
         obs_len = len(space.spaces)
         return tuple((np.stack([o[i] for o in obs]) for i in range(obs_len)))
     else:

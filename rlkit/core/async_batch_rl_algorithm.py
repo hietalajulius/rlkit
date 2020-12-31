@@ -49,6 +49,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.min_num_steps_before_training = min_num_steps_before_training
 
     def _train(self):
+        start_time = time.time()
         if self.min_num_steps_before_training > 0:
             init_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
@@ -151,3 +152,4 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.trainer._base_trainer.policy.vers += 1
 
             self._end_epoch(epoch)
+            print("Seconds since start", time.time() - start_time)
