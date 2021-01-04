@@ -208,6 +208,10 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         eval_statistics = OrderedDict()
         if not skip_statistics:
+            if not aux_output is None:
+                eval_statistics['State estimation loss'] = np.mean(ptu.get_numpy(
+                    off_loss
+                ))
             eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(

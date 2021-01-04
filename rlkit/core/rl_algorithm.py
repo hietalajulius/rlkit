@@ -31,6 +31,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             evaluation_env=None,
             exploration_data_collector: DataCollector = None,
             evaluation_data_collector: DataCollector = None,
+            preset_evaluation_data_collector: DataCollector = None,
             replay_buffer: ReplayBuffer = None,
             demo_buffer: ReplayBuffer = None,
             demo_paths=None
@@ -40,6 +41,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.eval_env = evaluation_env
         self.expl_data_collector = exploration_data_collector
         self.eval_data_collector = evaluation_data_collector
+        self.preset_eval_data_collector = preset_evaluation_data_collector
         self.replay_buffer = replay_buffer
         self.demo_buffer = demo_buffer
         self._start_epoch = 0
@@ -70,6 +72,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             self.expl_data_collector.end_epoch(epoch)
         if not self.eval_data_collector is None:
             self.eval_data_collector.end_epoch(epoch)
+        if not self.preset_eval_data_collector is None:
+            self.preset_eval_data_collector.end_epoch(epoch)
         if not self.replay_buffer is None:
             self.replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
@@ -91,6 +95,10 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         if not self.eval_data_collector is None:
             for k, v in self.eval_data_collector.get_snapshot().items():
                 snapshot['evaluation/' + k] = v
+
+        if not self.preset_eval_data_collector is None:
+            for k, v in self.preset_eval_data_collector.get_snapshot().items():
+                snapshot['preset_evaluation/' + k] = v
         if not self.replay_buffer is None:
             for k, v in self.replay_buffer.get_snapshot().items():
                 snapshot['replay_buffer/' + k] = v
@@ -148,8 +156,21 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(eval_paths),
                 prefix="evaluation/",
             )
-            self.writer.add_scalar('test/eval', eval_util.get_generic_path_information(
+            self.writer.add_scalar('test_regular/eval', eval_util.get_generic_path_information(
                 eval_paths)['env_infos/final/is_success Mean'], epoch)
+        if not self.preset_eval_data_collector is None:
+            logger.record_dict(
+                self.preset_eval_data_collector.get_diagnostics(),
+                prefix='preset_evaluation/',
+            )
+            preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
+            logger.record_dict(
+                eval_util.get_generic_path_information(preset_eval_paths),
+                prefix="preset_evaluation/",
+            )
+            self.writer.add_scalar('test_preset/eval', eval_util.get_generic_path_information(
+                preset_eval_paths)['env_infos/final/is_success Mean'], epoch)
+
         if not self.eval_env is None:
             if hasattr(self.eval_env, 'get_diagnostics'):
                 logger.record_dict(
@@ -166,7 +187,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():
             self.writer.add_scalar(
-                'test/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
+                'state/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
         print("Logged tensorboard")
 
         """

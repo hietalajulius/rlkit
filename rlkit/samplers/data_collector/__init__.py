@@ -10,6 +10,7 @@ from rlkit.samplers.data_collector.path_collector import (
     KeyPathCollector,
     VectorizedKeyPathCollector,
     EvalKeyPathCollector,
+    PresetEvalKeyPathCollector,
     VAEWrappedEnvPathCollector,
 )
 from rlkit.samplers.data_collector.step_collector import (

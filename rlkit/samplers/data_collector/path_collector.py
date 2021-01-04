@@ -158,11 +158,11 @@ class EvalKeyPathCollector(KeyPathCollector):
         for i in range(num_rollouts):
             print("Eval rollout", i+1)
             if i == 0:
-                render = False
-                render_kwargs = {}
-            else:
                 render = self._render
                 render_kwargs = self._render_kwargs
+            else:
+                render = False
+                render_kwargs = {}
 
             path = self._rollout_fn(
                 self._env,
@@ -174,6 +174,47 @@ class EvalKeyPathCollector(KeyPathCollector):
             path_len = len(path['actions'])
             num_steps_collected += path_len
             paths.append(path)
+        self._num_paths_total += len(paths)
+        self._num_steps_total += num_steps_collected
+        self._epoch_paths.extend(paths)
+        return paths
+
+
+class PresetEvalKeyPathCollector(KeyPathCollector):
+    def collect_new_paths(
+            self,
+            max_path_length,
+            num_param_buckets
+    ):
+        self._env.goal_sampling_mode = self._goal_sampling_mode
+        paths = []
+        num_steps_collected = 0
+
+        stiffnesses = np.linspace(
+            self._env.min_stiffness, self._env.max_stiffness, num_param_buckets)
+        dampings = np.linspace(
+            self._env.min_damping, self._env.max_damping, num_param_buckets)
+
+        for i in range(num_param_buckets):
+            for j in range(num_param_buckets):
+                print("Eval rollout", i*num_param_buckets +
+                      j, stiffnesses[i], dampings[j])
+
+                def reset_callback(env, agent, o):
+                    env.set_joint_tendon_params(
+                        stiffnesses[i], dampings[j], stiffnesses[i], dampings[j])
+
+                path = self._rollout_fn(
+                    self._env,
+                    self._policy,
+                    max_path_length=max_path_length,
+                    render=self._render,
+                    reset_callback=reset_callback,
+                    render_kwargs=self._render_kwargs,
+                )
+                path_len = len(path['actions'])
+                num_steps_collected += path_len
+                paths.append(path)
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)

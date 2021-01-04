@@ -8,6 +8,7 @@ from rlkit.samplers.data_collector import PathCollector
 import time
 import glob
 import os
+import torch
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -18,6 +19,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             evaluation_env,
             exploration_data_collector: PathCollector,
             evaluation_data_collector: PathCollector,
+            preset_evaluation_data_collector: PathCollector,
             replay_buffer: ReplayBuffer,
             batch_size,
             max_path_length,
@@ -27,6 +29,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_trains_per_train_loop,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
+            num_eval_param_buckets=1,
+            save_policy_every_epoch=1
     ):
         super().__init__(
             trainer,
@@ -34,6 +38,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             evaluation_env,
             exploration_data_collector,
             evaluation_data_collector,
+            preset_evaluation_data_collector,
             replay_buffer,
         )
         self.batch_size = batch_size
@@ -44,6 +49,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
+        self.num_eval_param_buckets = num_eval_param_buckets
+        self.save_policy_every_epoch = save_policy_every_epoch
 
     def _train(self):
         start_time = time.time()
@@ -61,6 +68,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
+            if epoch % self.save_policy_every_epoch == 0:
+                torch.save(
+                    self.trainer._base_trainer.policy.state_dict(), 'current_policy.mdl')
+                print("Saved current policy")
+
             files = glob.glob('success_images/*')
             for f in files:
                 os.remove(f)
@@ -73,6 +85,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             eval_paths = self.eval_data_collector.get_epoch_paths()
             print("EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
                 eval_paths)['env_infos/final/is_success Mean'])
+
+            self.preset_eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_param_buckets
+            )
+            preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
+            print("PRESET_EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
+                preset_eval_paths)['env_infos/final/is_success Mean'])
+
             print("Epoch", epoch)
 
             for cycle in range(self.num_train_loops_per_epoch):
