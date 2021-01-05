@@ -7,6 +7,7 @@ import copy
 import os
 import psutil
 import glob
+import torch
 
 
 class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -20,10 +21,13 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
             evaluation_data_collector,
+            preset_evaluation_data_collector,
             num_collected_steps,
             buffer_memory_usage,
             collector_memory_usage,
             env_memory_usages,
+            num_eval_param_buckets=1,
+            save_policy_every_epoch=1,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             demo_paths=None,
@@ -34,7 +38,8 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     ):
         super().__init__(
             trainer,
-            evaluation_data_collector=evaluation_data_collector
+            evaluation_data_collector=evaluation_data_collector,
+            preset_evaluation_data_collector=preset_evaluation_data_collector
 
         )
         self.train_collect_ratio = 4
@@ -54,6 +59,8 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
+        self.save_policy_every_epoch = save_policy_every_epoch
+        self.num_eval_param_buckets = num_eval_param_buckets
 
     def _train(self):
         start_time = time.time()
@@ -78,6 +85,11 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
+            if epoch % self.save_policy_every_epoch == 0:
+                torch.save(
+                    self.trainer._base_trainer.policy.state_dict(), 'current_async_policy.mdl')
+                print("Saved current policy")
+
             files = glob.glob('success_images/*')
             for f in files:
                 os.remove(f)
@@ -85,6 +97,11 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.eval_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_eval_rollouts_per_epoch
+            )
+
+            self.preset_eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_param_buckets
             )
             gt.stamp('evaluation sampling')
 
