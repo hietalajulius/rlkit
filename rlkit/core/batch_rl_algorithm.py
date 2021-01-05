@@ -121,6 +121,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
+                train_start = time.time()
                 for _ in range(self.num_trains_per_train_loop):
                     if not self.debug_same_batch:
                         train_data = self.replay_buffer.random_batch(
@@ -128,7 +129,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
-                train_time = time.time() - collection_done
+                train_time = time.time() - train_start
                 print("Took to train", train_time)
             self._end_epoch(epoch)
             print("Seconds since start", time.time() - start_time)
