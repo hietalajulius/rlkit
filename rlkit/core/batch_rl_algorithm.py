@@ -30,7 +30,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             num_eval_param_buckets=1,
-            save_policy_every_epoch=1
+            save_policy_every_epoch=1,
+            debug_same_batch=False
     ):
         super().__init__(
             trainer,
@@ -51,6 +52,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.min_num_steps_before_training = min_num_steps_before_training
         self.num_eval_param_buckets = num_eval_param_buckets
         self.save_policy_every_epoch = save_policy_every_epoch
+        self.debug_same_batch = debug_same_batch
 
     def _train(self):
         start_time = time.time()
@@ -63,6 +65,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             )
             self.replay_buffer.add_paths(init_expl_paths)
             self.expl_data_collector.end_epoch(-1)
+
+            if self.debug_same_batch:
+                train_data = self.replay_buffer.random_batch(
+                    self.batch_size)
 
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
@@ -99,26 +105,26 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             for cycle in range(self.num_train_loops_per_epoch):
                 print("Cycle", cycle)
                 start_cycle = time.time()
-                new_expl_paths = self.expl_data_collector.collect_new_paths(
-                    self.max_path_length,
-                    self.num_expl_steps_per_train_loop,
-                    discard_incomplete_paths=False,
-                )
-                gt.stamp('exploration sampling', unique=False)
-                collection_done = time.time()
-                collection_time = collection_done - start_cycle
-                print("Took to collect", collection_time)
 
-                self.replay_buffer.add_paths(new_expl_paths)
-                gt.stamp('data storing', unique=False)
+                if not self.debug_same_batch:
+                    new_expl_paths = self.expl_data_collector.collect_new_paths(
+                        self.max_path_length,
+                        self.num_expl_steps_per_train_loop,
+                        discard_incomplete_paths=False,
+                    )
+                    gt.stamp('exploration sampling', unique=False)
+                    collection_done = time.time()
+                    collection_time = collection_done - start_cycle
+                    print("Took to collect", collection_time)
 
-                storing_done = time.time()
-                collection_time = storing_done - collection_done
-                print("Took to collect", collection_time)
+                    self.replay_buffer.add_paths(new_expl_paths)
+                    gt.stamp('data storing', unique=False)
+
                 self.training_mode(True)
                 for _ in range(self.num_trains_per_train_loop):
-                    train_data = self.replay_buffer.random_batch(
-                        self.batch_size)
+                    if not self.debug_same_batch:
+                        train_data = self.replay_buffer.random_batch(
+                            self.batch_size)
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
                 self.training_mode(False)

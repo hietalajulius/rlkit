@@ -35,6 +35,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             policy_weights_queue=None,
             new_policy_event=None,
             batch_processed_event=None,
+            debug_same_batch=False
     ):
         super().__init__(
             trainer,
@@ -61,6 +62,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.min_num_steps_before_training = min_num_steps_before_training
         self.save_policy_every_epoch = save_policy_every_epoch
         self.num_eval_param_buckets = num_eval_param_buckets
+        self.debug_same_batch = debug_same_batch
 
     def _train(self):
         start_time = time.time()
