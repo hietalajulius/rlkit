@@ -19,7 +19,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             evaluation_env,
             exploration_data_collector: PathCollector,
             evaluation_data_collector: PathCollector,
-            preset_evaluation_data_collector: PathCollector,
             replay_buffer: ReplayBuffer,
             batch_size,
             max_path_length,
@@ -27,6 +26,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_eval_rollouts_per_epoch,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
+            preset_evaluation_data_collector: PathCollector = None,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             num_eval_param_buckets=1,
@@ -92,13 +92,14 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             print("EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
                 eval_paths)['env_infos/final/is_success Mean'])
 
-            self.preset_eval_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_eval_param_buckets
-            )
-            preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
-            print("PRESET_EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
-                preset_eval_paths)['env_infos/final/is_success Mean'])
+            if not self.preset_eval_data_collector is None:
+                self.preset_eval_data_collector.collect_new_paths(
+                    self.max_path_length,
+                    self.num_eval_param_buckets
+                )
+                preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
+                print("PRESET_EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
+                    preset_eval_paths)['env_infos/final/is_success Mean'])
 
             print("Epoch", epoch)
 

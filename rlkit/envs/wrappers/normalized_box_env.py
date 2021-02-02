@@ -59,5 +59,3 @@ class NormalizedBoxEnv(ProxyEnv):
 
     def __str__(self):
         return "Normalized: %s" % self._wrapped_env
-
-
