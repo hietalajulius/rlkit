@@ -120,8 +120,6 @@ def rollout(
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        next_o, r, d, env_info = env.step(copy.deepcopy(a))
-        # print("Step")
         if render:
             if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
                 if not aux_output is None:
@@ -133,6 +131,9 @@ def rollout(
                 env.clear_aux_positions()
             else:
                 env.render(**render_kwargs)
+
+        next_o, r, d, env_info = env.step(copy.deepcopy(a))
+        # print("Step")
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
