@@ -86,12 +86,10 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
 
-        # TODO: figure this our for multiprocess env
-        ''' 
         if not self.expl_data_collector is None:
             for k, v in self.expl_data_collector.get_snapshot().items():
                 snapshot['exploration/' + k] = v
-        '''
+
         if not self.eval_data_collector is None:
             for k, v in self.eval_data_collector.get_snapshot().items():
                 snapshot['evaluation/' + k] = v
@@ -130,12 +128,24 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 self.expl_data_collector.get_diagnostics(),
                 prefix='exploration/'
             )
-            # TODO: figure out path saves to avoid memory leaks
             expl_paths = self.expl_data_collector.get_epoch_paths()
             logger.record_dict(
                 eval_util.get_generic_path_information(expl_paths),
                 prefix="exploration/",
             )
+            self.writer.add_scalar('env/acceleration_penalty', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/final/acceleration_penalty Mean'], epoch)
+            self.writer.add_scalar('env/velocity_penalty', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/final/velocity_penalty Mean'], epoch)
+            self.writer.add_scalar('env/position_penalty', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/final/position_penalty Mean'], epoch)
+
+            self.writer.add_scalar('env/acceleration_violations', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/acceleration_over_limit Mean'], epoch)
+            self.writer.add_scalar('env/velocity_violations', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/velocity_over_limit Mean'], epoch)
+            self.writer.add_scalar('env/position_violations', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/position_over_limit Mean'], epoch)
         if not self.expl_env is None:
             if hasattr(self.expl_env, 'get_diagnostics'):
                 logger.record_dict(

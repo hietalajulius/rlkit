@@ -279,14 +279,19 @@ class VectorizedKeyPathCollector(MdpPathCollector):
         stripped_paths = []
         for path in paths:
             stripped_path = dict(
-                rewards=path['rewards'], actions=path['actions'])
+                rewards=path['rewards'], actions=path['actions'], env_infos=path['env_infos'])
             stripped_paths.append(stripped_path)
 
         self._epoch_paths.extend(stripped_paths)
         return paths
 
     def get_snapshot(self):
-        pass
+        snapshot = super().get_snapshot()
+        snapshot.update(
+            observation_key=self._observation_key,
+            desired_goal_key=self._desired_goal_key,
+        )
+        return snapshot
 
 
 class GoalConditionedPathCollector(MdpPathCollector):
