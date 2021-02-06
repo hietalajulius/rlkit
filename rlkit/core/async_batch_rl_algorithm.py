@@ -89,7 +89,16 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         ):
             if epoch % self.save_policy_every_epoch == 0:
                 torch.save(
-                    self.trainer._base_trainer.policy.state_dict(), 'current_async_policy.mdl')
+                    self.trainer._base_trainer.policy.state_dict(), 'async_policy/current_policy.mdl')
+                torch.save(
+                    self.trainer._base_trainer.alpha_optimizer.state_dict(), 'async_policy/current_alpha_optimizer.mdl')
+                torch.save(
+                    self.trainer._base_trainer.policy_optimizer.state_dict(), 'async_policy/current_policy_optimizer.mdl')
+                torch.save(
+                    self.trainer._base_trainer.qf1_optimizer.state_dict(), 'async_policy/current_qf1_optimizer.mdl')
+                torch.save(
+                    self.trainer._base_trainer.qf2_optimizer.state_dict(), 'async_policy/current_qf2_optimizer.mdl')
+
                 print("Saved current policy")
 
             files = glob.glob('success_images/*')

@@ -2,6 +2,8 @@ import numpy as np
 from gym.spaces import Dict, Discrete
 
 from rlkit.data_management.replay_buffer import ReplayBuffer
+import copy
+from gym.envs.robotics import task_definitions, reward_calculation
 
 
 class FutureObsDictRelabelingBuffer(ReplayBuffer):
@@ -24,7 +26,6 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
     def __init__(
             self,
             max_size,
-            reward_function,
             ob_spaces,
             action_space,
             fraction_goals_rollout_goals=1.0,
@@ -45,7 +46,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
 
         assert fraction_goals_rollout_goals >= 0
         self.max_size = max_size
-        self.reward_function = reward_function
+        self.reward_function = self.set_reward_function(None)
         self.fraction_goals_rollout_goals = fraction_goals_rollout_goals
 
         self.ob_keys_to_save = [
@@ -88,6 +89,9 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
         self._idx_to_future_obs_idx = [None] * max_size
+
+    def set_reward_function(self, reward_function):
+        self.reward_function = reward_function
 
     def terminate_episode(self):
         pass
