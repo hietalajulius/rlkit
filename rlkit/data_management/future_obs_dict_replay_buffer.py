@@ -69,12 +69,12 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_size, 1), dtype='uint8')
         # self._obs[key][i] is the value of observation[key] at time i
+        self._control_penalties = np.zeros((max_size, 1), dtype='uint8')
         self._obs = {}
         self._next_obs = {}
 
         for key in self.ob_keys_to_save + internal_keys:
-            assert key in self.ob_spaces, \
-                "Key not found in the observation space: %s" % key
+            assert key in self.ob_spaces, "Key not found in the observation space: %s" % key
             type = np.float64
             if key.startswith('image'):
                 type = np.uint8
@@ -109,6 +109,8 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         rewards = path["rewards"]
         next_obs = path["next_observations"]
         terminals = path["terminals"]
+        control_penalties = np.array([info['control_penalty']
+                                      for info in path['env_infos']])
         path_len = len(rewards)
 
         actions = flatten_n(actions)
@@ -144,6 +146,8 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             ]:
                 self._actions[buffer_slice] = actions[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
+                self._control_penalties[buffer_slice] = np.expand_dims(
+                    control_penalties[path_slice], axis=1)
                 for key in self.ob_keys_to_save + self.internal_keys:
                     self._obs[key][buffer_slice] = obs[key][path_slice]
                     self._next_obs[key][buffer_slice] = (
@@ -167,6 +171,8 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
             self._terminals[slc] = terminals
+            self._control_penalties[slc] = np.expand_dims(
+                control_penalties, axis=1)
             for key in self.ob_keys_to_save + self.internal_keys:
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
@@ -222,30 +228,11 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
         new_actions = self._actions[indices]
-        """
-        For example, the environments in this repo have batch-wise
-        implementations of computing rewards:
-
-        https://github.com/vitchyr/multiworld
-        """
-
-        '''
-        new_rewards = np.ones((batch_size, 1))
-        print("shapes going in rew func",
-              new_next_obs_dict[self.achieved_goal_key][0].shape, new_next_obs_dict[self.desired_goal_key][0].shape)
-        for i in range(batch_size):
-            new_rewards[i] = self.reward_function(
-                new_next_obs_dict[self.achieved_goal_key][i],
-                new_next_obs_dict[self.desired_goal_key][i],
-                {}
-            )
-        new_rewards = new_rewards.reshape(-1, 1)
-        '''
 
         new_rewards = self.reward_function(
             new_next_obs_dict[self.achieved_goal_key],
             new_next_obs_dict[self.desired_goal_key],
-            {}
+            dict(control_penalties=self._control_penalties[indices].flatten())
         )
 
         new_rewards = new_rewards.reshape(-1, 1)
