@@ -53,42 +53,32 @@ class ClothSacHERTrainer(TorchTrainer):
 
         resampled_goals = data['resampled_goals']
 
-        if 'model_params' in data.keys():
-            model_params = data['model_params']
-        else:
-            model_params = torch.tensor([])
-
-        obs = data['observations']
-        next_obs = data['next_observations']
+        value_obs = data['observations']
+        value_next_obs = data['next_observations']
 
         if 'images' in data.keys():
-            images = data['images']
-            next_images = data['next_images']
-
-            if 'robot_observations' in data.keys():
-                robot_obs = data['robot_observations']
-                next_robot_obs = data['next_robot_observations']
-            else:
-                robot_obs = torch.tensor([])
-                next_robot_obs = torch.tensor([])
-
-            new_data['policy_obs'] = torch.cat(
-                (images, robot_obs, resampled_goals), dim=1)
-            new_data['policy_next_obs'] = torch.cat(
-                (next_images, next_robot_obs, resampled_goals), dim=1)
-            new_data['value_obs'] = torch.cat(
-                (obs, model_params, resampled_goals), dim=1)
-            new_data['value_next_obs'] = torch.cat(
-                (next_obs, model_params, resampled_goals), dim=1)
+            policy_obs = data['images']
+            policy_next_obs = data['next_images']
         else:
-            new_data['policy_obs'] = torch.cat(
-                (obs, model_params, resampled_goals), dim=1)
-            new_data['policy_next_obs'] = torch.cat(
-                (next_obs, model_params, resampled_goals), dim=1)
-            new_data['value_obs'] = torch.cat(
-                (obs, model_params, resampled_goals), dim=1)
-            new_data['value_next_obs'] = torch.cat(
-                (next_obs, model_params, resampled_goals), dim=1)
+            policy_obs = value_obs
+            policy_next_obs = value_next_obs
+
+        if 'robot_observations' in data.keys():
+            policy_obs = torch.cat((policy_obs, data['robot_observations']), axis=1)
+            policy_next_obs = torch.cat((policy_next_obs, data['next_robot_observations']), axis=1)
+        if 'model_params' in data.keys():
+            value_obs = torch.cat((value_obs, data['model_params']), axis=1)
+            value_next_obs = torch.cat((value_next_obs, data['model_params']), axis=1)
+        
+        policy_obs = torch.cat((policy_obs, resampled_goals), axis=1)
+        policy_next_obs = torch.cat((policy_next_obs, resampled_goals), axis=1)
+        value_obs = torch.cat((value_obs, resampled_goals), axis=1)
+        value_next_obs = torch.cat((value_next_obs, resampled_goals), axis=1)
+
+        new_data['policy_obs'] = policy_obs
+        new_data['policy_next_obs'] = policy_next_obs
+        new_data['value_obs'] = value_obs
+        new_data['value_next_obs'] = value_next_obs
 
         self._base_trainer.train_from_torch(new_data)
 
