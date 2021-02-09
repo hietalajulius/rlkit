@@ -143,11 +143,12 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             for buffer_slice, path_slice in [
                 (pre_wrap_buffer_slice, pre_wrap_path_slice),
                 (post_wrap_buffer_slice, post_wrap_path_slice),
-            ]:
+            ]:  
+                print("SLICES", buffer_slice, path_slice)
+                print("SHAPES", terminals.shape, control_penalties.shape)
                 self._actions[buffer_slice] = actions[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
-                self._control_penalties[buffer_slice] = np.expand_dims(
-                    control_penalties[path_slice], axis=1)
+                self._control_penalties[buffer_slice] = np.expand_dims(control_penalties, axis=1)[path_slice]
                 for key in self.ob_keys_to_save + self.internal_keys:
                     self._obs[key][buffer_slice] = obs[key][path_slice]
                     self._next_obs[key][buffer_slice] = (
