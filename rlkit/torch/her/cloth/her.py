@@ -52,7 +52,11 @@ class ClothSacHERTrainer(TorchTrainer):
         new_data['actions'] = data['actions']
 
         resampled_goals = data['resampled_goals']
-        model_params = data['model_params']
+
+        if 'model_params' in data.keys():
+            model_params = data['model_params']
+        else:
+            model_params = torch.tensor([])
 
         obs = data['observations']
         next_obs = data['next_observations']
@@ -60,8 +64,13 @@ class ClothSacHERTrainer(TorchTrainer):
         if 'images' in data.keys():
             images = data['images']
             next_images = data['next_images']
-            robot_obs = data['robot_observations']
-            next_robot_obs = data['next_robot_observations']
+
+            if 'robot_observations' in data.keys():
+                robot_obs = data['robot_observations']
+                next_robot_obs = data['next_robot_observations']
+            else:
+                robot_obs = torch.tensor([])
+                next_robot_obs = torch.tensor([])
 
             new_data['policy_obs'] = torch.cat(
                 (images, robot_obs, resampled_goals), dim=1)
