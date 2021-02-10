@@ -60,7 +60,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.debug_same_batch = debug_same_batch
 
     def _train(self):
-        load_existing = True #TODO: parametrize
+        load_existing = False  # TODO: parametrize
         if load_existing:
             self.trainer._base_trainer.policy.load_state_dict(torch.load(
                 'policy/current_policy.mdl'))

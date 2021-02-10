@@ -183,7 +183,8 @@ class GaussianPolicy(Mlp, TorchStochasticPolicy):
             std = torch.from_numpy(np.array([self.std, ])).float().to(
                 ptu.device)
 
-        return MultivariateDiagonalNormal(mean, std)
+        # NOTE: aux position preds
+        return MultivariateDiagonalNormal(mean, std), None
 
 
 class GaussianCNNPolicy(CNN, TorchStochasticPolicy):
@@ -229,7 +230,7 @@ class GaussianCNNPolicy(CNN, TorchStochasticPolicy):
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
     def forward(self, obs):
-        h = super().forward(obs, return_last_activations=True)
+        h, h_aux = super().forward(obs, return_last_activations=True)
         preactivation = self.last_fc(h)
         mean = self.output_activation(preactivation)
         if self.std is None:
@@ -246,7 +247,7 @@ class GaussianCNNPolicy(CNN, TorchStochasticPolicy):
             std = torch.from_numpy(np.array([self.std, ])).float().to(
                 ptu.device)
 
-        return MultivariateDiagonalNormal(mean, std)
+        return MultivariateDiagonalNormal(mean, std), h_aux
 
 
 class GaussianMixturePolicy(Mlp, TorchStochasticPolicy):

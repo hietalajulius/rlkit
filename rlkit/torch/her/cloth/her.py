@@ -64,16 +64,24 @@ class ClothSacHERTrainer(TorchTrainer):
             policy_next_obs = value_next_obs
 
         if 'robot_observations' in data.keys():
-            policy_obs = torch.cat((policy_obs, data['robot_observations']), axis=1)
-            policy_next_obs = torch.cat((policy_next_obs, data['next_robot_observations']), axis=1)
+            policy_obs = torch.cat(
+                (policy_obs, data['robot_observations']), axis=1)
+            policy_next_obs = torch.cat(
+                (policy_next_obs, data['next_robot_observations']), axis=1)
+            value_obs = torch.cat(
+                (value_obs, data['robot_observations']), axis=1)
+            value_next_obs = torch.cat(
+                (value_next_obs, data['next_robot_observations']), axis=1)
         if 'model_params' in data.keys():
             value_obs = torch.cat((value_obs, data['model_params']), axis=1)
-            value_next_obs = torch.cat((value_next_obs, data['model_params']), axis=1)
-        
+            value_next_obs = torch.cat(
+                (value_next_obs, data['model_params']), axis=1)
+
         policy_obs = torch.cat((policy_obs, resampled_goals), axis=1)
         policy_next_obs = torch.cat((policy_next_obs, resampled_goals), axis=1)
         value_obs = torch.cat((value_obs, resampled_goals), axis=1)
         value_next_obs = torch.cat((value_next_obs, resampled_goals), axis=1)
+
 
         new_data['policy_obs'] = policy_obs
         new_data['policy_next_obs'] = policy_next_obs
