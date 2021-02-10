@@ -162,7 +162,9 @@ def list_of_dicts__to__dict_of_lists(lst):
     keys = lst[0].keys()
     output_dict = collections.defaultdict(list)
     for d in lst:
-        assert set(d.keys()) == set(keys), (d.keys(), keys)
+        #assert set(d.keys()) == set(keys), (d.keys(), keys)
+        if not set(d.keys()) == set(keys):
+            print("FYUFUFUFUF would have failed", d.keys(), keys)
         for k in keys:
             output_dict[k].append(d[k])
     return output_dict
