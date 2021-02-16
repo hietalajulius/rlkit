@@ -4,6 +4,7 @@ import numpy as np
 import copy
 import os
 import glob
+import cv2
 
 create_rollout_function = partial
 
@@ -99,6 +100,7 @@ def rollout(
     next_observations = []
     path_length = 0
     agent.reset()
+
     o = env.reset()
 
     if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
@@ -123,14 +125,20 @@ def rollout(
         if render:
             if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
                 if not aux_output is None:
+
                     env.set_aux_positions(
                         aux_output[:, 0:3], aux_output[:, 3:6], aux_output[:, 6:9], aux_output[:, 9:12])
-                env.render(**render_kwargs, filename='images/' +
-                           str(path_length) + '.png')
+
+                camera_id = env.sim.model.camera_name2id('clothview')
+                env.sim._render_context_offscreen.render(
+                    1000, 1000, camera_id)
+                image_obs = env.sim._render_context_offscreen.read_pixels(
+                    1000, 1000, depth=False)
+
+                image_obs = image_obs[::-1, :, :]
+                cv2.imwrite('images/'+str(path_length) + '.png', image_obs)
 
                 env.clear_aux_positions()
-            else:
-                env.render(**render_kwargs)
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
         # print("Step")
