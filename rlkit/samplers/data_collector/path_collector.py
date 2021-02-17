@@ -158,18 +158,15 @@ class EvalKeyPathCollector(KeyPathCollector):
         for i in range(num_rollouts):
             print("Eval rollout", i+1)
             if i == 0:
-                render = self._render
-                render_kwargs = self._render_kwargs
+                render = True
             else:
                 render = False
-                render_kwargs = {}
 
             path = self._rollout_fn(
                 self._env,
                 self._policy,
                 max_path_length=max_path_length,
-                render=render,
-                render_kwargs=render_kwargs,
+                render=render
             )
             path_len = len(path['actions'])
             num_steps_collected += path_len

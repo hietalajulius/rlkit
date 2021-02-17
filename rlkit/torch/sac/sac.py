@@ -181,7 +181,7 @@ class SACTrainer(TorchTrainer, LossFunction):
                              value_obs[:, 12:15], value_obs[:, 18:21]), dim=1) - aux_output
             off_loss = (off**2).sum(dim=1).mean()
             policy_loss = (alpha*log_pi - q_new_actions).mean() + \
-                0.001*off_loss
+                0.005*off_loss
         else:
             policy_loss = (alpha*log_pi - q_new_actions).mean()
 

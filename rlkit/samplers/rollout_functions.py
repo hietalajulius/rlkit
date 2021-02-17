@@ -71,6 +71,24 @@ def contextual_rollout(
     return paths
 
 
+def capture_image(env, aux_output, path_length):
+    if not aux_output is None:
+        env.set_aux_positions(
+            aux_output[:, 0:3], aux_output[:, 3:6], aux_output[:, 6:9], aux_output[:, 9:12])
+
+    camera_id = env.sim.model.camera_name2id(
+        'clothview2')  # TODO: parametrize camera
+    env.sim._render_context_offscreen.render(
+        1000, 1000, camera_id)
+    image_obs = env.sim._render_context_offscreen.read_pixels(
+        1000, 1000, depth=False)
+
+    image_obs = image_obs[::-1, :, :]
+    cv2.imwrite('images/'+str(path_length) + '.png', image_obs)
+
+    env.clear_aux_positions()
+
+
 def rollout(
         env,
         agent,
@@ -103,12 +121,12 @@ def rollout(
 
     o = env.reset()
 
-    if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
+    if render:
         files = glob.glob('images/*')
         for f in files:
             os.remove(f)
-    elif render:
-        env.render(**render_kwargs)
+
+        capture_image(env, None, 'reset')
 
     if reset_callback:
         reset_callback(env, agent, o)
@@ -123,22 +141,7 @@ def rollout(
             full_o_postprocess_func(env, agent, o)
 
         if render:
-            if 'image_capture' in render_kwargs.keys() and render_kwargs['image_capture']:
-                if not aux_output is None:
-
-                    env.set_aux_positions(
-                        aux_output[:, 0:3], aux_output[:, 3:6], aux_output[:, 6:9], aux_output[:, 9:12])
-
-                camera_id = env.sim.model.camera_name2id('clothview')
-                env.sim._render_context_offscreen.render(
-                    1000, 1000, camera_id)
-                image_obs = env.sim._render_context_offscreen.read_pixels(
-                    1000, 1000, depth=False)
-
-                image_obs = image_obs[::-1, :, :]
-                cv2.imwrite('images/'+str(path_length) + '.png', image_obs)
-
-                env.clear_aux_positions()
+            capture_image(env, aux_output, path_length)
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
         # print("Step")
