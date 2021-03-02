@@ -72,6 +72,8 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
 
+        self.cosine_similarity = nn.CosineSimilarity(dim=1)
+
         self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
             lr=policy_lr,
@@ -175,15 +177,21 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf1(value_obs, new_obs_actions),
             self.qf2(value_obs, new_obs_actions),
         )
+        policy_loss = (alpha*log_pi - q_new_actions).mean()
+
+        speed_loss = -self.cosine_similarity(
+            new_obs_actions, value_obs[:, 51:54]).mean()
+
+        policy_loss += speed_loss
 
         if not aux_output is None:
             off = torch.cat((value_obs[:, :3], value_obs[:, 6:9],
                              value_obs[:, 12:15], value_obs[:, 18:21]), dim=1) - aux_output
+
             off_loss = (off**2).sum(dim=1).mean()
-            policy_loss = (alpha*log_pi - q_new_actions).mean() + \
-                0.005*off_loss
-        else:
-            policy_loss = (alpha*log_pi - q_new_actions).mean()
+
+            # TODO: Adjust coefficient back
+            policy_loss += off_loss
 
         """
         QF Loss

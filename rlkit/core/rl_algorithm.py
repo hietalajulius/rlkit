@@ -134,18 +134,26 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 prefix="exploration/",
             )
             self.writer.add_scalar('env/acceleration_penalty', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/final/acceleration_penalty Mean'], epoch)
-            self.writer.add_scalar('env/velocity_penalty', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/final/velocity_penalty Mean'], epoch)
-            self.writer.add_scalar('env/position_penalty', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/final/position_penalty Mean'], epoch)
-
+                expl_paths)['env_infos/acceleration_penalty Mean'], epoch)
             self.writer.add_scalar('env/acceleration_violations', eval_util.get_generic_path_information(
                 expl_paths)['env_infos/acceleration_over_limit Mean'], epoch)
-            self.writer.add_scalar('env/velocity_violations', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/velocity_over_limit Mean'], epoch)
-            self.writer.add_scalar('env/position_violations', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/position_over_limit Mean'], epoch)
+
+            self.writer.add_scalar('env/jerk_penalty', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/jerk_penalty Mean'], epoch)
+            self.writer.add_scalar('env/jerk_violations', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/jerk_over_limit Mean'], epoch)
+
+            self.writer.add_scalar('env/torque_rate_penalty', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/torque_rate_penalty Mean'], epoch)
+            self.writer.add_scalar('env/torque_rate_violations', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/torque_rate_over_limit Mean'], epoch)
+
+            self.writer.add_scalar('env/error_distance mean', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/error_distance Mean'], epoch)
+
+            self.writer.add_scalar('env/error_distance std', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/error_distance Std'], epoch)
+
         if not self.expl_env is None:
             if hasattr(self.expl_env, 'get_diagnostics'):
                 logger.record_dict(
