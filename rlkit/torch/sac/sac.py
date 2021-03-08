@@ -179,10 +179,9 @@ class SACTrainer(TorchTrainer, LossFunction):
         )
         policy_loss = (alpha*log_pi - q_new_actions).mean()
 
-        speed_loss = -self.cosine_similarity(
-            new_obs_actions, value_obs[:, 51:54]).mean()
+        #speed_loss = -0.01*self.cosine_similarity(new_obs_actions, value_obs[:, 51:54]).mean()
 
-        policy_loss += speed_loss
+        #policy_loss += speed_loss
 
         if not aux_output is None:
             off = torch.cat((value_obs[:, :3], value_obs[:, 6:9],
