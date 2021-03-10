@@ -100,7 +100,8 @@ def merge_recursive_dicts(a, b, path=None,
     """
     Merge two dicts that may have nested dicts.
     """
-    if path is None: path = []
+    if path is None:
+        path = []
     for key in b:
         if key in a:
             if isinstance(a[key], dict) and isinstance(b[key], dict):
@@ -164,7 +165,9 @@ def list_of_dicts__to__dict_of_lists(lst):
     for d in lst:
         #assert set(d.keys()) == set(keys), (d.keys(), keys)
         if not set(d.keys()) == set(keys):
-            print("FYUFUFUFUF would have failed", d.keys(), keys)
+            pass
+            # TODO: figure this out (timelimit trunc when success)
+            #print("FYUFUFUFUF would have failed", d.keys(), keys)
         for k in keys:
             output_dict[k].append(d[k])
     return output_dict
@@ -277,8 +280,8 @@ def filter_recursive(x_or_iterable):
         for sub_elem in x_or_iterable:
             filtered_sub_elem = filter_recursive(sub_elem)
             if filtered_sub_elem is not None and not (
-                        isinstance(filtered_sub_elem, list) and
-                            len(filtered_sub_elem) == 0
+                isinstance(filtered_sub_elem, list) and
+                len(filtered_sub_elem) == 0
             ):
                 new_items.append(filtered_sub_elem)
         return new_items

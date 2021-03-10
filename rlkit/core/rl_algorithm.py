@@ -8,6 +8,7 @@ from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import DataCollector
 
 from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 
 
 def _get_epoch_timings():
@@ -133,26 +134,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(expl_paths),
                 prefix="exploration/",
             )
-            self.writer.add_scalar('env/acceleration_penalty', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/acceleration_penalty Mean'], epoch)
-            self.writer.add_scalar('env/acceleration_violations', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/acceleration_over_limit Mean'], epoch)
 
-            self.writer.add_scalar('env/jerk_penalty', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/jerk_penalty Mean'], epoch)
-            self.writer.add_scalar('env/jerk_violations', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/jerk_over_limit Mean'], epoch)
+            self.writer.add_scalar('expl/torque_rate_clips mean', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/torque_rate_clips Mean'], epoch)
 
-            self.writer.add_scalar('env/torque_rate_penalty', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/torque_rate_penalty Mean'], epoch)
-            self.writer.add_scalar('env/torque_rate_violations', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/torque_rate_over_limit Mean'], epoch)
-
-            self.writer.add_scalar('env/error_distance mean', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/error_distance Mean'], epoch)
-
-            self.writer.add_scalar('env/error_distance std', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/error_distance Std'], epoch)
+            self.writer.add_scalar('expl/torque_rate_clips std', eval_util.get_generic_path_information(
+                expl_paths)['env_infos/torque_rate_clips Std'], epoch)
 
         if not self.expl_env is None:
             if hasattr(self.expl_env, 'get_diagnostics'):
@@ -176,6 +163,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             )
             self.writer.add_scalar('test_regular/eval', eval_util.get_generic_path_information(
                 eval_paths)['env_infos/final/is_success Mean'], epoch)
+
+            ate_of_first_eval = np.sqrt(eval_util.get_generic_path_information(
+                [eval_paths[0]])['env_infos/initial/squared_error_norm Mean'])
+
+            self.writer.add_scalar('eval/ATE', ate_of_first_eval, epoch)
+
         if not self.preset_eval_data_collector is None:
             logger.record_dict(
                 self.preset_eval_data_collector.get_diagnostics(),
