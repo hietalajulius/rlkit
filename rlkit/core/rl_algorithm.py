@@ -199,12 +199,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():
             self.writer.add_scalar(
                 'state/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
-        print("Logged tensorboard")
 
         """
         Misc
         """
         gt.stamp('logging')
+
         logger.record_dict(_get_epoch_timings())
         logger.record_tabular('Epoch', epoch)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)

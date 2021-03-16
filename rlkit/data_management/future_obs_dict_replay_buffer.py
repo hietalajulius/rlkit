@@ -46,7 +46,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
 
         assert fraction_goals_rollout_goals >= 0
         self.max_size = max_size
-        self.reward_function = self.set_reward_function(None)
+        self.task_reward_function = self.set_task_reward_function(None)
         self.fraction_goals_rollout_goals = fraction_goals_rollout_goals
 
         self.ob_keys_to_save = [
@@ -90,8 +90,8 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         # Then self._next_obs[j] is a valid next observation for observation i
         self._idx_to_future_obs_idx = [None] * max_size
 
-    def set_reward_function(self, reward_function):
-        self.reward_function = reward_function
+    def set_task_reward_function(self, task_reward_function):
+        self.task_reward_function = task_reward_function
 
     def terminate_episode(self):
         pass
@@ -229,11 +229,14 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
 
         new_actions = self._actions[indices]
 
-        new_rewards = self.reward_function(
+        new_task_rewards = self.task_reward_function(
             new_next_obs_dict[self.achieved_goal_key],
             new_next_obs_dict[self.desired_goal_key],
-            dict(control_penalties=self._control_penalties[indices].flatten())
+            dict()
         )
+
+        control_penalties = self._control_penalties[indices].flatten()
+        new_rewards = new_task_rewards + control_penalties
 
         new_rewards = new_rewards.reshape(-1, 1)
         new_obs = new_obs_dict[self.observation_key]

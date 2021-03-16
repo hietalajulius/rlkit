@@ -46,7 +46,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             replay_buffer,
         )
         # TODO: fix spaghetti
-        self.reward_function = copy.deepcopy(replay_buffer.reward_function)
+        self.task_reward_function = copy.deepcopy(
+            replay_buffer.task_reward_function)
 
         self.batch_size = batch_size
         self.max_path_length = max_path_length
@@ -65,18 +66,19 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         load_existing = False  # TODO: parametrize
         if load_existing:
             self.trainer._base_trainer.policy.load_state_dict(torch.load(
-                'policy/current_policy.mdl'))
+                '../policies/sync/current_policy.mdl'))
             self.trainer._base_trainer.alpha_optimizer.load_state_dict(
-                torch.load(f'policy/{self.title}_current_alpha_optimizer.mdl'))
+                torch.load(f'../policies/sync/{self.title}_current_alpha_optimizer.mdl'))
             self.trainer._base_trainer.policy_optimizer.load_state_dict(
-                torch.load(f'policy/{self.title}_current_policy_optimizer.mdl'))
+                torch.load(f'../policies/sync/{self.title}_current_policy_optimizer.mdl'))
             self.trainer._base_trainer.qf1_optimizer.load_state_dict(
-                torch.load(f'policy/{self.title}_current_qf1_optimizer.mdl'))
+                torch.load(f'../policies/sync/{self.title}_current_qf1_optimizer.mdl'))
             self.trainer._base_trainer.qf2_optimizer.load_state_dict(
-                torch.load(f'policy/{self.title}_current_qf2_optimizer.mdl'))
-            with open(f'policy/{self.title}_buffer_data.pkl', 'rb') as inp:
+                torch.load(f'../policies/sync/{self.title}_current_qf2_optimizer.mdl'))
+            with open(f'../policies/sync/{self.title}_buffer_data.pkl', 'rb') as inp:
                 self.replay_buffer = pickle.load(inp)
-                self.replay_buffer.set_reward_function(self.reward_function)
+                self.replay_buffer.set_task_reward_function(
+                    self.task_reward_function)
 
         start_time = time.time()
 
@@ -99,21 +101,22 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         ):
             if epoch % self.save_policy_every_epoch == 0:
                 torch.save(
-                    self.trainer._base_trainer.policy.state_dict(), f'policy/{self.title}_current_policy.mdl')
+                    self.trainer._base_trainer.policy.state_dict(), f'../policies/sync/{self.title}_current_policy.mdl')
                 torch.save(
-                    self.trainer._base_trainer.alpha_optimizer.state_dict(), f'policy/{self.title}_current_alpha_optimizer.mdl')
+                    self.trainer._base_trainer.alpha_optimizer.state_dict(), f'../policies/sync/{self.title}_current_alpha_optimizer.mdl')
                 torch.save(
-                    self.trainer._base_trainer.policy_optimizer.state_dict(), f'policy/{self.title}_current_policy_optimizer.mdl')
+                    self.trainer._base_trainer.policy_optimizer.state_dict(), f'../policies/sync/{self.title}_current_policy_optimizer.mdl')
                 torch.save(
-                    self.trainer._base_trainer.qf1_optimizer.state_dict(), f'policy/{self.title}_current_qf1_optimizer.mdl')
+                    self.trainer._base_trainer.qf1_optimizer.state_dict(), f'../policies/sync/{self.title}_current_qf1_optimizer.mdl')
                 torch.save(
-                    self.trainer._base_trainer.qf2_optimizer.state_dict(), f'policy/{self.title}_current_qf2_optimizer.mdl')
+                    self.trainer._base_trainer.qf2_optimizer.state_dict(), f'../policies/sync/{self.title}_current_qf2_optimizer.mdl')
 
-                self.replay_buffer.set_reward_function(None)
-                with open(f'policy/{self.title}_buffer_data.pkl', 'wb') as outp:
+                self.replay_buffer.set_task_reward_function(None)
+                with open(f'../policies/sync/{self.title}_buffer_data.pkl', 'wb') as outp:
                     pickle.dump(self.replay_buffer, outp,
                                 pickle.HIGHEST_PROTOCOL)
-                self.replay_buffer.set_reward_function(self.reward_function)
+                self.replay_buffer.set_task_reward_function(
+                    self.task_reward_function)
                 print("Saved current policy and replay buffer")
 
             files = glob.glob('success_images/*')

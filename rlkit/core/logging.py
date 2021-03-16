@@ -20,6 +20,7 @@ import torch
 from rlkit.core.tabulate import tabulate
 from collections import OrderedDict
 
+
 def add_prefix(log_dict: OrderedDict, prefix: str, divider=''):
     with_prefix = OrderedDict()
     for key, val in log_dict.items():
@@ -144,7 +145,8 @@ class Logger(object):
             file_name = osp.join(self._snapshot_dir, file_name)
         if self._tabular_fds[file_name] in self._tabular_header_written:
             self._tabular_header_written.remove(self._tabular_fds[file_name])
-        self._remove_output(file_name, self._tabular_outputs, self._tabular_fds)
+        self._remove_output(
+            file_name, self._tabular_outputs, self._tabular_fds)
 
     def set_snapshot_dir(self, dir_name):
         self._snapshot_dir = dir_name
@@ -166,6 +168,7 @@ class Logger(object):
 
     def set_log_tabular_only(self, log_tabular_only):
         self._log_tabular_only = log_tabular_only
+        print("LOG LOG", log_tabular_only)
 
     def get_log_tabular_only(self, ):
         return self._log_tabular_only
@@ -185,6 +188,7 @@ class Logger(object):
                 fd.write(out + '\n')
                 fd.flush()
             sys.stdout.flush()
+            print("Stdout flushed ok")
 
     def record_tabular(self, key, val):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
@@ -254,7 +258,8 @@ class Logger(object):
             prefix = key
             suffix = ""
         if len(values) > 0:
-            self.record_tabular(prefix + "Average" + suffix, np.average(values))
+            self.record_tabular(prefix + "Average" +
+                                suffix, np.average(values))
             self.record_tabular(prefix + "Std" + suffix, np.std(values))
             self.record_tabular(prefix + "Median" + suffix, np.median(values))
             self.record_tabular(prefix + "Min" + suffix, np.min(values))
@@ -270,7 +275,9 @@ class Logger(object):
         wh = kwargs.pop("write_header", None)
         if len(self._tabular) > 0:
             if self._log_tabular_only:
-                self.table_printer.print_tabular(self._tabular)
+                #TODO: what
+                pass
+                # self.table_printer.print_tabular(self._tabular)
             else:
                 for line in tabulate(self._tabular).split('\n'):
                     self.log(line, *args, **kwargs)
@@ -317,11 +324,13 @@ class Logger(object):
                 torch.save(params, file_name)
             elif self._snapshot_mode == "gap":
                 if itr % self._snapshot_gap == 0:
-                    file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+                    file_name = osp.join(
+                        self._snapshot_dir, 'itr_%d.pkl' % itr)
                     torch.save(params, file_name)
             elif self._snapshot_mode == "gap_and_last":
                 if itr % self._snapshot_gap == 0:
-                    file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+                    file_name = osp.join(
+                        self._snapshot_dir, 'itr_%d.pkl' % itr)
                     torch.save(params, file_name)
                 file_name = osp.join(self._snapshot_dir, 'params.pkl')
                 torch.save(params, file_name)
@@ -332,4 +341,3 @@ class Logger(object):
 
 
 logger = Logger()
-
