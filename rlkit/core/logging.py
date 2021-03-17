@@ -168,7 +168,6 @@ class Logger(object):
 
     def set_log_tabular_only(self, log_tabular_only):
         self._log_tabular_only = log_tabular_only
-        print("LOG LOG", log_tabular_only)
 
     def get_log_tabular_only(self, ):
         return self._log_tabular_only
@@ -307,7 +306,10 @@ class Logger(object):
                     self._tabular_header_written.add(tabular_fd)
                 writer.writerow(tabular_dict)
                 tabular_fd.flush()
-            del self._tabular[:]
+            try:
+                del self._tabular[:]
+            except:
+                print("FOOBAR log fail")
 
     def pop_prefix(self, ):
         del self._prefixes[-1]
