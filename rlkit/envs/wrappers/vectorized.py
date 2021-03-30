@@ -8,6 +8,14 @@ import inspect
 from typing import Sequence, Optional, List, Union
 import psutil
 import os
+import cProfile
+import time
+
+
+def profiled_worker(remote, parent_remote, env_fn_wrapper, num, env_memory_usage=None):
+    print("Profiling subprocess")
+    cProfile.runctx('_worker(remote, parent_remote, env_fn_wrapper, env_memory_usage)',
+                    globals(), locals(), f'prof{num}.prof-{time.strftime("%m-%d")}')
 
 
 def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
@@ -457,10 +465,11 @@ class SubprocVecEnv(VecEnv):
                 args = (work_remote, remote, CloudpickleWrapper(
                     env_fn), env_mem_usages[i])
             else:
-                args = (work_remote, remote, CloudpickleWrapper(env_fn))
+                args = (work_remote, remote, CloudpickleWrapper(env_fn), i)
             # daemon=True: if the main process crashes, we should not cause things to hang
             # pytype:disable=attribute-error
-            process = ctx.Process(target=_worker, args=args, daemon=True)
+            process = ctx.Process(target=profiled_worker,
+                                  args=args, daemon=True)
             process.start()
             self.processes.append(process)
             work_remote.close()
