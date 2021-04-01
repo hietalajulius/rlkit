@@ -10,6 +10,7 @@ import psutil
 import os
 import cProfile
 import time
+import mujoco_py
 
 
 def profiled_worker(remote, parent_remote, env_fn_wrapper, num, env_memory_usage=None):
@@ -19,47 +20,48 @@ def profiled_worker(remote, parent_remote, env_fn_wrapper, num, env_memory_usage
 
 
 def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
-    process = psutil.Process(os.getpid())
-    print("Worker process PID", process)
-    parent_remote.close()
-    env = env_fn_wrapper.var()
-    while True:
-        try:
-            cmd, data = remote.recv()
-            if cmd == 'step':
-                observation, reward, done, info = env.step(data)
-                if done:
-                    # save final observation where user can get it, then reset
-                    info['terminal_observation'] = observation
+    with mujoco_py.ignore_mujoco_warnings():
+        process = psutil.Process(os.getpid())
+        print("Worker process PID", process)
+        parent_remote.close()
+        env = env_fn_wrapper.var()
+        while True:
+            try:
+                cmd, data = remote.recv()
+                if cmd == 'step':
+                    observation, reward, done, info = env.step(data)
+                    if done:
+                        # save final observation where user can get it, then reset
+                        info['terminal_observation'] = observation
+                        observation = env.reset()
+                    remote.send((observation, reward, done, info))
+                elif cmd == 'seed':
+                    remote.send(env.seed(data))
+                elif cmd == 'reset':
                     observation = env.reset()
-                remote.send((observation, reward, done, info))
-            elif cmd == 'seed':
-                remote.send(env.seed(data))
-            elif cmd == 'reset':
-                observation = env.reset()
-                remote.send(observation)
-                if not env_memory_usage is None:
-                    env_memory_usage.value = process.memory_info().rss/10E9
-            elif cmd == 'render':
-                remote.send(env.render(data))
-            elif cmd == 'close':
-                env.close()
-                remote.close()
-                break
-            elif cmd == 'get_spaces':
-                remote.send((env.observation_space, env.action_space))
-            elif cmd == 'env_method':
-                method = getattr(env, data[0])
-                remote.send(method(*data[1], **data[2]))
-            elif cmd == 'get_attr':
-                remote.send(getattr(env, data))
-            elif cmd == 'set_attr':
-                remote.send(setattr(env, data[0], data[1]))
-            else:
-                raise NotImplementedError(
-                    "`{}` is not implemented in the worker".format(cmd))
-        except EOFError:
-            break
+                    remote.send(observation)
+                    if not env_memory_usage is None:
+                        env_memory_usage.value = process.memory_info().rss/10E9
+                elif cmd == 'render':
+                    remote.send(env.render(data))
+                elif cmd == 'close':
+                    env.close()
+                    remote.close()
+                    break
+                elif cmd == 'get_spaces':
+                    remote.send((env.observation_space, env.action_space))
+                elif cmd == 'env_method':
+                    method = getattr(env, data[0])
+                    remote.send(method(*data[1], **data[2]))
+                elif cmd == 'get_attr':
+                    remote.send(getattr(env, data))
+                elif cmd == 'set_attr':
+                    remote.send(setattr(env, data[0], data[1]))
+                else:
+                    raise NotImplementedError(
+                        "`{}` is not implemented in the worker".format(cmd))
+            except:
+                "Got some warning stuff, continuar, no throw you fool"
 
 
 def tile_images(img_nhwc):

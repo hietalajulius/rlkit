@@ -187,7 +187,6 @@ class Logger(object):
                 fd.write(out + '\n')
                 fd.flush()
             sys.stdout.flush()
-            print("Stdout flushed ok")
 
     def record_tabular(self, key, val):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
