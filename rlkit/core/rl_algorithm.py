@@ -64,10 +64,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
     def _end_epoch(self, epoch, save_params=False):
         snapshot = self._get_snapshot()
-        if save_params:
-            logger.save_itr_params(epoch, snapshot)
-        gt.stamp('saving')
-        self._log_stats(epoch)
+        # TODO: figure out below, only log tb for now
+        # if save_params:
+        #logger.save_itr_params(epoch, snapshot)
+        # gt.stamp('saving')
+        # self._log_stats(epoch)
+
+        self._log_tb_stats(epoch)
 
         if not self.expl_data_collector is None:
             self.expl_data_collector.end_epoch(epoch)
@@ -103,6 +106,32 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 snapshot['replay_buffer/' + k] = v
         return snapshot
 
+    def _log_tb_stats(self, epoch):
+
+        expl_paths = self.expl_data_collector.get_epoch_paths()
+        eval_paths = self.eval_data_collector.get_epoch_paths()
+
+        self.writer.add_scalar('test_regular/eval', eval_util.get_generic_path_information(
+            eval_paths)['env_infos/final/is_success Mean'], epoch)
+
+        ates = []
+        for path in expl_paths:
+            ate = np.sqrt(eval_util.get_generic_path_information([path])[
+                          'env_infos/initial/squared_error_norm Mean'])
+            ates.append(ate)
+        ates = np.array(ates)
+
+        self.writer.add_scalar('expl/ATE/Mean', ates.mean(), epoch)
+
+        if not self.preset_eval_data_collector is None:
+            preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
+            self.writer.add_scalar('test_preset/eval', eval_util.get_generic_path_information(
+                preset_eval_paths)['env_infos/final/is_success Mean'], epoch)
+
+        if 'State estimation loss' in self.trainer.get_diagnostics().keys():
+            self.writer.add_scalar(
+                'state/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
+
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
 
@@ -135,12 +164,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 prefix="exploration/",
             )
 
-            self.writer.add_scalar('expl/torque_rate_clips mean', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/torque_rate_clips Mean'], epoch)
-
-            self.writer.add_scalar('expl/torque_rate_clips std', eval_util.get_generic_path_information(
-                expl_paths)['env_infos/torque_rate_clips Std'], epoch)
-
         if not self.expl_env is None:
             if hasattr(self.expl_env, 'get_diagnostics'):
                 logger.record_dict(
@@ -161,13 +184,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(eval_paths),
                 prefix="evaluation/",
             )
-            self.writer.add_scalar('test_regular/eval', eval_util.get_generic_path_information(
-                eval_paths)['env_infos/final/is_success Mean'], epoch)
-
-            ate_of_first_eval = np.sqrt(eval_util.get_generic_path_information(
-                [eval_paths[0]])['env_infos/initial/squared_error_norm Mean'])
-
-            self.writer.add_scalar('eval/ATE', ate_of_first_eval, epoch)
 
         if not self.preset_eval_data_collector is None:
             logger.record_dict(
@@ -179,8 +195,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(preset_eval_paths),
                 prefix="preset_evaluation/",
             )
-            self.writer.add_scalar('test_preset/eval', eval_util.get_generic_path_information(
-                preset_eval_paths)['env_infos/final/is_success Mean'], epoch)
 
         if not self.eval_env is None:
             if hasattr(self.eval_env, 'get_diagnostics'):
@@ -195,10 +209,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(self.demo_paths),
                 prefix="evaluation/demonstrations/",
             )
-
-        if 'State estimation loss' in self.trainer.get_diagnostics().keys():
-            self.writer.add_scalar(
-                'state/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
 
         """
         Misc
