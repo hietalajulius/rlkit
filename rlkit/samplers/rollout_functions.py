@@ -76,15 +76,19 @@ def capture_image(env, aux_output, path_length):
         env.set_aux_positions(
             aux_output[:, 0:3], aux_output[:, 3:6], aux_output[:, 6:9], aux_output[:, 9:12])
 
+    '''
     camera_id = env.sim.model.camera_name2id(
-        'clothview2')  # TODO: parametrize camera
+        'birdview')  # TODO: parametrize camera
     env.sim._render_context_offscreen.render(
         1000, 1000, camera_id)
     image_obs = env.sim._render_context_offscreen.read_pixels(
         1000, 1000, depth=False)
+    '''
 
-    image_obs = image_obs[::-1, :, :]
-    cv2.imwrite('images/'+str(path_length) + '.png', image_obs)
+    env.viewer.render(1000, 1000)
+    data = env.viewer.read_pixels(1000, 1000, depth=False)
+    data = data[::-1, :, :]
+    cv2.imwrite('images/'+str(path_length) + '.png', data)
 
     env.clear_aux_positions()
 
