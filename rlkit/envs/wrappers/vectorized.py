@@ -28,20 +28,28 @@ def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
         while True:
             try:
                 cmd, data = remote.recv()
+                #print("CMD", cmd, os.getpid())
                 if cmd == 'step':
+                    #print("step start", os.getpid())
                     observation, reward, done, info = env.step(data)
+                    #print("step end", os.getpid())
                     if done:
+                        #print("done", os.getpid())
                         # save final observation where user can get it, then reset
                         info['terminal_observation'] = observation
                         observation = env.reset()
+                        #print("reset", os.getpid())
+                    #print("send", os.getpid())
                     remote.send((observation, reward, done, info))
+                    #print("sent", os.getpid())
                 elif cmd == 'seed':
                     remote.send(env.seed(data))
                 elif cmd == 'reset':
                     observation = env.reset()
                     remote.send(observation)
                     if not env_memory_usage is None:
-                        env_memory_usage.value = process.memory_info().rss/10E9
+                        env_memory_usage.value = process.memory_info().rss/1E9
+                    #print("Worker memory usage", process.memory_info().rss/1E9)
                 elif cmd == 'render':
                     remote.send(env.render(data))
                 elif cmd == 'close':

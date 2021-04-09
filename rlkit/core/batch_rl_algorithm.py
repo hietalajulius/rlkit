@@ -1,6 +1,5 @@
 import abc
 
-import gtimer as gt
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.core import eval_util
 from rlkit.data_management.replay_buffer import ReplayBuffer
@@ -11,7 +10,7 @@ import os
 import torch
 import pickle
 import copy
-
+import psutil
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
@@ -63,6 +62,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.title = title
 
     def _train(self):
+        process = psutil.Process(os.getpid())
         load_existing = False  # TODO: parametrize
         if load_existing:
             self.trainer._base_trainer.policy.load_state_dict(torch.load(
@@ -95,10 +95,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 train_data = self.replay_buffer.random_batch(
                     self.batch_size)
 
-        for epoch in gt.timed_for(
-                range(self._start_epoch, self.num_epochs),
-                save_itrs=True,
-        ):
+        for epoch in range(self._start_epoch, self.num_epochs):
             if epoch % self.save_policy_every_epoch == 0:
                 torch.save(
                     self.trainer._base_trainer.policy.state_dict(), f'../policies/sync/{self.title}_current_policy.mdl')
@@ -126,7 +123,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.max_path_length,
                 self.num_eval_rollouts_per_epoch
             )
-            gt.stamp('evaluation sampling')
 
             eval_paths = self.eval_data_collector.get_epoch_paths()
             print("EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
@@ -145,6 +141,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
             for cycle in range(self.num_train_loops_per_epoch):
                 print("Cycle", cycle)
+                #print("Memory usage in main process", process.memory_info().rss/1E9)
                 start_cycle = time.time()
 
                 if not self.debug_same_batch:
@@ -153,13 +150,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         self.num_expl_steps_per_train_loop,
                         discard_incomplete_paths=False,
                     )
-                    gt.stamp('exploration sampling', unique=False)
                     collection_done = time.time()
                     collection_time = collection_done - start_cycle
 
                     self.replay_buffer.add_paths(new_expl_paths)
                     print("Took to collect:", collection_time, "buffer size:", self.replay_buffer._size)
-                    gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
                 train_start = time.time()
@@ -168,7 +163,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         train_data = self.replay_buffer.random_batch(
                             self.batch_size)
                     self.trainer.train(train_data)
-                gt.stamp('training', unique=False)
                 self.training_mode(False)
                 train_time = time.time() - train_start
                 print("Took to train", train_time)

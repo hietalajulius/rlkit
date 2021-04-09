@@ -37,7 +37,9 @@ def vec_env_rollout(
         a, _ = agent.get_actions(o_for_agent, **get_action_kwargs)
         agent_info = [{} for _ in range(processes)]
 
+        #print("VEC ENV STEP START")
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
+        #print("VEC ENV STEP DONE")
 
         for idx, path_dict in enumerate(paths):
             if not idx in done_indices:

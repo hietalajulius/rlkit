@@ -11,7 +11,6 @@ import rlkit.torch.pytorch_util as ptu
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.torch_rl_algorithm import TorchTrainer
 from rlkit.core.logging import add_prefix
-import gtimer as gt
 
 SACLosses = namedtuple(
     'SACLosses',
@@ -94,7 +93,6 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.eval_statistics = OrderedDict()
 
     def train_from_torch(self, batch):
-        gt.blank_stamp()
         losses, stats = self.compute_loss(
             batch,
             skip_statistics=not self._need_to_update_eval_statistics,
@@ -126,7 +124,6 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.eval_statistics = stats
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
-        gt.stamp('sac training', unique=False)
 
     def try_update_target_networks(self):
         if self._n_train_steps_total % self.target_update_period == 0:
