@@ -156,9 +156,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     gt.stamp('exploration sampling', unique=False)
                     collection_done = time.time()
                     collection_time = collection_done - start_cycle
-                    print("Took to collect", collection_time)
 
                     self.replay_buffer.add_paths(new_expl_paths)
+                    print("Took to collect:", collection_time, "buffer size:", self.replay_buffer._size)
                     gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)

@@ -125,12 +125,14 @@ def rollout(
 
     o = env.reset()
 
+    evaluation = False
     if render:
         files = glob.glob('images/*')
         for f in files:
             os.remove(f)
 
         capture_image(env, None, 'reset')
+        evaluation = True #Hackedy hack
 
     if reset_callback:
         reset_callback(env, agent, o)
@@ -147,7 +149,7 @@ def rollout(
         if render:
             capture_image(env, aux_output, path_length)
 
-        next_o, r, d, env_info = env.step(copy.deepcopy(a))
+        next_o, r, d, env_info = env.step(copy.deepcopy(a), evaluation=evaluation)
         # print("Step")
         observations.append(o)
         rewards.append(r)
