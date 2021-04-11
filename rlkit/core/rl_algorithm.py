@@ -114,14 +114,32 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.writer.add_scalar('test_regular/eval', eval_util.get_generic_path_information(
             eval_paths)['env_infos/final/is_success Mean'], epoch)
 
+        '''
         ates = []
         for path in expl_paths:
             ate = np.sqrt(eval_util.get_generic_path_information([path])[
-                          'env_infos/initial/squared_error_norm Mean'])
+                          'env_infos/squared_error_norm Mean'])
             ates.append(ate)
         ates = np.array(ates)
+        '''
 
-        self.writer.add_scalar('expl/ATE/Mean', ates.mean(), epoch)
+        self.writer.add_scalar('expl/ATE/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/error_norm Mean'], epoch)
+        self.writer.add_scalar('expl/Task Reward (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/task_reward Mean'], epoch)
+        self.writer.add_scalar('expl/Control Penalty (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/control_penalty Mean'], epoch)
+        self.writer.add_scalar('expl/Reward (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/reward Mean'], epoch)
+        self.writer.add_scalar('expl/Cosine similarity (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/cosine_similarity Mean'], epoch)
+        self.writer.add_scalar('expl/Scaled cosine similarity (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/scaled_cosine_similarity Mean'], epoch)
+        self.writer.add_scalar('expl/Reward/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'Rewards Mean'], epoch)
+        self.writer.add_scalar('expl/Returns/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'Returns Mean'], epoch)
+        
 
         if not self.preset_eval_data_collector is None:
             preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
