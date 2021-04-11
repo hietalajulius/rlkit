@@ -135,6 +135,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                           'env_infos/cosine_similarity Mean'], epoch)
         self.writer.add_scalar('expl/Scaled cosine similarity (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
                           'env_infos/scaled_cosine_similarity Mean'], epoch)
+        self.writer.add_scalar('expl/Scaled error norm (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/scaled_error_norm Mean'], epoch)
         self.writer.add_scalar('expl/Reward/Mean', eval_util.get_generic_path_information(expl_paths)[
                           'Rewards Mean'], epoch)
         self.writer.add_scalar('expl/Returns/Mean', eval_util.get_generic_path_information(expl_paths)[
