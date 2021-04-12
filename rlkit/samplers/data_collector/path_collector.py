@@ -42,7 +42,6 @@ class MdpPathCollector(PathCollector):
             max_path_length,
             num_steps,
             discard_incomplete_paths,
-            image_capture=False
     ):
         paths = []
         num_steps_collected = 0
@@ -51,19 +50,13 @@ class MdpPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
-            if image_capture:
-                render = False
-                render_kwargs = {}
-            else:
-                render = self._render
-                render_kwargs = self._render_kwargs
 
             path = self._rollout_fn(
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
-                render=render,
-                render_kwargs=render_kwargs,
+                render=self._render,
+                render_kwargs=self._render_kwargs,
             )
             path_len = len(path['actions'])
             if (
@@ -158,15 +151,15 @@ class EvalKeyPathCollector(KeyPathCollector):
         for i in range(num_rollouts):
             print("Eval rollout", i+1)
             if i == 0:
-                render = True
+                evaluate = True
             else:
-                render = False
+                evaluate = False
 
             path = self._rollout_fn(
                 self._env,
                 self._policy,
                 max_path_length=max_path_length,
-                render=render
+                evaluate=evaluate
             )
             path_len = len(path['actions'])
             num_steps_collected += path_len

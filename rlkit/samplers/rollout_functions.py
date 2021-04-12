@@ -70,33 +70,11 @@ def contextual_rollout(
     )
     return paths
 
-
-def capture_image(env, aux_output, path_length):
-    if not aux_output is None:
-        env.set_aux_positions(
-            aux_output[:, 0:3], aux_output[:, 3:6], aux_output[:, 6:9], aux_output[:, 9:12])
-
-    '''
-    camera_id = env.sim.model.camera_name2id(
-        'birdview')  # TODO: parametrize camera
-    env.sim._render_context_offscreen.render(
-        1000, 1000, camera_id)
-    image_obs = env.sim._render_context_offscreen.read_pixels(
-        1000, 1000, depth=False)
-    '''
-
-    env.viewer.render(1000, 1000)
-    data = env.viewer.read_pixels(1000, 1000, depth=False)
-    data = data[::-1, :, :]
-    cv2.imwrite('images/'+str(path_length) + '.png', data)
-
-    env.clear_aux_positions()
-
-
 def rollout(
         env,
         agent,
         max_path_length=np.inf,
+        evaluate=False,
         render=False,
         render_kwargs=None,
         preprocess_obs_for_policy_fn=None,
@@ -125,14 +103,8 @@ def rollout(
 
     o = env.reset()
 
-    evaluation = False
-    if render:
-        files = glob.glob('images/*')
-        for f in files:
-            os.remove(f)
-
-        capture_image(env, None, 'reset')
-        evaluation = True #Hackedy hack
+    if evaluate:
+        env.capture_image(None, 'reset')
 
     if reset_callback:
         reset_callback(env, agent, o)
@@ -146,10 +118,10 @@ def rollout(
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        if render:
-            capture_image(env, aux_output, path_length)
+        if evaluate:
+            env.capture_image(aux_output, path_length)
 
-        next_o, r, d, env_info = env.step(copy.deepcopy(a), evaluation=evaluation)
+        next_o, r, d, env_info = env.step(copy.deepcopy(a), evaluation=evaluate)
         # print("Step")
         observations.append(o)
         rewards.append(r)
