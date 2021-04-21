@@ -103,8 +103,6 @@ def rollout(
 
     o = env.reset()
 
-    if evaluate:
-        env.capture_image(None, 'reset')
 
     if reset_callback:
         reset_callback(env, agent, o)

@@ -66,10 +66,11 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             self._action_dim = action_space.low.size
 
         self._actions = np.zeros((max_size, self._action_dim))
+        self._control_penalties = np.zeros((max_size, 1))
+        self._corner_positions = np.zeros((max_size, 8))
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_size, 1), dtype='uint8')
         # self._obs[key][i] is the value of observation[key] at time i
-        self._control_penalties = np.zeros((max_size, 1), dtype='uint8')
         self._obs = {}
         self._next_obs = {}
 
@@ -111,9 +112,14 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         terminals = path["terminals"]
         control_penalties = np.array([info['control_penalty']
                                       for info in path['env_infos']])
+        corner_positions = np.array([info['corner_positions']
+                                      for info in path['env_infos']])
+
         path_len = len(rewards)
 
         actions = flatten_n(actions)
+        corner_positions = flatten_n(corner_positions)
+        control_penalties = flatten_n(control_penalties)
         if isinstance(self.action_space, Discrete):
             actions = np.eye(self._action_dim)[actions]
             actions = actions.reshape((-1, self._action_dim))
@@ -146,8 +152,9 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             ]:
                 self._actions[buffer_slice] = actions[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
-                self._control_penalties[buffer_slice] = np.expand_dims(
-                    control_penalties, axis=1)[path_slice]
+                self._corner_positions[buffer_slice] = corner_positions[path_slice]
+                self._control_penalties[buffer_slice] = control_penalties[path_slice]
+                
                 for key in self.ob_keys_to_save + self.internal_keys:
                     self._obs[key][buffer_slice] = obs[key][path_slice]
                     self._next_obs[key][buffer_slice] = (
@@ -171,8 +178,8 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
             self._terminals[slc] = terminals
-            self._control_penalties[slc] = np.expand_dims(
-                control_penalties, axis=1)
+            self._control_penalties[slc] = control_penalties
+            self._corner_positions[slc] = corner_positions
             for key in self.ob_keys_to_save + self.internal_keys:
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
@@ -228,7 +235,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
         new_actions = self._actions[indices]
-
+        corner_positions = self._corner_positions[indices]
         new_task_rewards = self.task_reward_function(
             new_next_obs_dict[self.achieved_goal_key],
             new_next_obs_dict[self.desired_goal_key],
@@ -250,6 +257,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             'next_observations': new_next_obs,
             'resampled_goals': resampled_goals,
             'indices': np.array(indices).reshape(-1, 1),
+            'corner_positions': corner_positions
         }
         if 'image' in self.internal_keys:
             batch['images'] = new_obs_dict['image']

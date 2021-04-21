@@ -24,7 +24,9 @@ class CNN(PyTorchModule):
             n_channels,
             strides,
             paddings,
-            hidden_sizes=None,
+            hidden_sizes_all=[],
+            hidden_sizes_aux=[],
+            hidden_sizes_main=[],
             added_fc_input_size=0,
             conv_normalization_type='none',
             fc_normalization_type='none',
@@ -38,9 +40,8 @@ class CNN(PyTorchModule):
             pool_strides=None,
             pool_paddings=None,
             aux_output_size=1
-    ):
-        if hidden_sizes is None:
-            hidden_sizes = []
+    ):  
+        assert hidden_sizes_all[-1] == hidden_sizes_aux[0] + hidden_sizes_main[0]
         assert len(kernel_sizes) == \
             len(n_channels) == \
             len(strides) == \
@@ -52,7 +53,9 @@ class CNN(PyTorchModule):
             assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
         super().__init__()
 
-        self.hidden_sizes = hidden_sizes
+        self.hidden_sizes_all = hidden_sizes_all
+        self.hidden_sizes_aux = hidden_sizes_aux
+        self.hidden_sizes_main = hidden_sizes_main
         self.input_width = input_width
         self.input_height = input_height
         self.input_channels = input_channels
@@ -68,15 +71,20 @@ class CNN(PyTorchModule):
         self.pool_type = pool_type
 
         self.aux_output_size = aux_output_size
+        self.aux_activation = nn.Sigmoid()
 
-        self.aux_weight = nn.Parameter(torch.ones(
-            self.aux_output_size), requires_grad=True)
+        self.init_w = init_w
 
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
         self.pool_layers = nn.ModuleList()
-        self.fc_layers = nn.ModuleList()
-        self.fc_norm_layers = nn.ModuleList()
+        self.fc_all_layers = nn.ModuleList()
+        self.fc_aux_layers = nn.ModuleList()
+        self.fc_main_layers = nn.ModuleList()
+
+        self.fc_all_norm_layers = nn.ModuleList()
+        self.fc_aux_norm_layers = nn.ModuleList()
+        self.fc_main_norm_layers = nn.ModuleList()
 
         for i, (out_channels, kernel_size, stride, padding) in enumerate(
                 zip(n_channels, kernel_sizes, strides, paddings)
@@ -121,35 +129,41 @@ class CNN(PyTorchModule):
 
         self.conv_output_flat_size = int(np.prod(test_mat.shape))
         if self.output_conv_channels:
-            self.last_fc = None
+            self.last_fc_aux = None
+            self.last_fc_main = None
         else:
-            fc_input_size = self.conv_output_flat_size
-            # used only for injecting input directly into fc layers
-            fc_input_size += added_fc_input_size
-            for idx, hidden_size in enumerate(hidden_sizes):
-                if idx == 1:
-                    fc_layer = nn.Linear(
-                        fc_input_size, hidden_size+self.aux_output_size)
-                else:
-                    fc_layer = nn.Linear(fc_input_size, hidden_size)
+            fc_all_input_size = self.conv_output_flat_size
+            fc_all_input_size += added_fc_input_size
+            self.add_fc_layers(fc_all_input_size, self.fc_all_layers, self.fc_all_norm_layers, self.hidden_sizes_all)
 
-                fc_input_size = hidden_size
+            self.add_fc_layers(self.hidden_sizes_aux[0], self.fc_aux_layers, self.fc_aux_norm_layers, self.hidden_sizes_aux[1:])
+            self.last_fc_aux = nn.Linear(self.hidden_sizes_aux[-1], aux_output_size)
+            self.last_fc_aux.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_aux.bias.data.uniform_(-init_w, init_w)
 
-                fc_layer.weight.data.uniform_(-init_w, init_w)
-                fc_layer.bias.data.uniform_(-init_w, init_w)
 
-                self.fc_layers.append(fc_layer)
+            self.add_fc_layers(self.hidden_sizes_main[0], self.fc_main_layers, self.fc_main_norm_layers, self.hidden_sizes_main[1:])
+            self.last_fc_main = nn.Linear(self.hidden_sizes_main[-1], output_size)
+            self.last_fc_main.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_main.bias.data.uniform_(-init_w, init_w)
 
-                if self.fc_normalization_type == 'batch':
-                    self.fc_norm_layers.append(nn.BatchNorm1d(hidden_size))
-                if self.fc_normalization_type == 'layer':
-                    self.fc_norm_layers.append(nn.LayerNorm(hidden_size))
+    def add_fc_layers(self, fc_input_size, fc_module_list, norm_module_list, hidden_sizes):
+        for hidden_size in hidden_sizes:
+            fc_layer = nn.Linear(fc_input_size, hidden_size)
+            fc_input_size = hidden_size
 
-            self.last_fc = nn.Linear(fc_input_size, output_size)
-            self.last_fc.weight.data.uniform_(-init_w, init_w)
-            self.last_fc.bias.data.uniform_(-init_w, init_w)
+            fc_layer.weight.data.uniform_(-self.init_w, self.init_w)
+            fc_layer.bias.data.uniform_(-self.init_w, self.init_w)
 
-    def forward(self, input, return_last_activations=False):
+            fc_module_list.append(fc_layer)
+
+            if self.fc_normalization_type == 'batch':
+                norm_module_list.append(nn.BatchNorm1d(hidden_size))
+            if self.fc_normalization_type == 'layer':
+                norm_module_list.append(nn.LayerNorm(hidden_size))
+
+
+    def forward(self, input, return_last_main_activations=False):
         conv_input = input.narrow(start=0,
                                   length=self.conv_input_length,
                                   dim=1).contiguous()
@@ -159,9 +173,15 @@ class CNN(PyTorchModule):
                             self.input_height,
                             self.input_width)
 
+        #debug_image = h[0].detach().cpu().numpy()
+        #cv2.imshow('goal', debug_image.reshape((100, 100, 1)))
+        #cv2.waitKey(10)
+        
+        #data = h.reshape((100, 100, 1)).cpu().numpy().copy()
+        #cv2.imwrite(f'./train_images/{str(np.random.rand())}.png', data)
+
         #image = h.reshape((100, 100, 1)).cpu().numpy().copy()
-        #cv2.imshow('goal', image)
-        # cv2.waitKey(10)
+        
 
         h = self.apply_forward_conv(h)
 
@@ -177,13 +197,22 @@ class CNN(PyTorchModule):
                 dim=1,
             )
             h = torch.cat((h, extra_fc_input), dim=1)
-        h, h_aux = self.apply_forward_fc(h)
 
-        h_aux = h_aux * self.aux_weight
+        h_all = self.apply_forward_fc(h, self.fc_all_layers, self.fc_all_norm_layers)
 
-        if return_last_activations:
-            return h, h_aux
-        return self.output_activation(self.last_fc(h)), h_aux
+        h_aux = h_all[:, self.hidden_sizes_main[-1]:]
+        h_main = h_all[:, :self.hidden_sizes_main[-1]]
+
+        h_aux = self.apply_forward_fc(h_aux, self.fc_aux_layers, self.fc_aux_norm_layers)
+        h_main = self.apply_forward_fc(h_main, self.fc_main_layers, self.fc_main_norm_layers)
+
+        h_aux = self.last_fc_aux(h_aux)
+        h_aux = self.aux_activation(h_aux)
+
+        if return_last_main_activations:
+            return h_main, h_aux
+            
+        return self.output_activation(self.last_fc_main(h_main)), h_aux
 
     def apply_forward_conv(self, h):
         for i, layer in enumerate(self.conv_layers):
@@ -195,17 +224,13 @@ class CNN(PyTorchModule):
             h = self.hidden_activation(h)
         return h
 
-    def apply_forward_fc(self, h):
-        for i, layer in enumerate(self.fc_layers):
-            if i == 2:
-                h_aux = h[:, -self.aux_output_size:]
-                h = h[:, :-self.aux_output_size:]
-
+    def apply_forward_fc(self, h, layers, norm_layers):
+        for i, layer in enumerate(layers):
             h = layer(h)
             if self.fc_normalization_type != 'none':
-                h = self.fc_norm_layers[i](h)
+                h = norm_layers[i](h)
             h = self.hidden_activation(h)
-        return h, h_aux
+        return h
 
 
 class ConcatCNN(CNN):

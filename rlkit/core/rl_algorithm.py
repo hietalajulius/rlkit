@@ -152,7 +152,20 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():
             self.writer.add_scalar(
-                'state/eval/stateloss', self.trainer.get_diagnostics()['State estimation loss'], epoch)
+                'losses/eval/state', self.trainer.get_diagnostics()['State estimation loss'], epoch)
+
+        self.writer.add_scalar(
+                'losses/eval/q1', self.trainer.get_diagnostics()['QF1 Loss'], epoch)
+        self.writer.add_scalar(
+                'losses/eval/q2', self.trainer.get_diagnostics()['QF2 Loss'], epoch)
+        self.writer.add_scalar(
+                'losses/eval/policy', self.trainer.get_diagnostics()['Raw Policy Loss'], epoch)
+        self.writer.add_scalar(
+                'losses/eval/logpi', self.trainer.get_diagnostics()['Log Pi'], epoch)
+        self.writer.add_scalar(
+                'losses/eval/alpha', self.trainer.get_diagnostics()['Alpha'], epoch)
+        self.writer.add_scalar(
+                'losses/eval/alphaloss', self.trainer.get_diagnostics()['Alpha Loss'], epoch)
 
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)

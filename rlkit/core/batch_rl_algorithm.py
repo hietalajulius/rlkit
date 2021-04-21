@@ -64,6 +64,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.save_folder = save_folder
 
     def _train(self):
+        self.training_mode(False)
         process = psutil.Process(os.getpid())
         load_existing = False  # TODO: parametrize
         if load_existing:
@@ -146,7 +147,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             print("Epoch", epoch)
 
             for cycle in range(self.num_train_loops_per_epoch):
-                print("Cycle", cycle)
+                print("Cycle", cycle, epoch)
                 #print("Memory usage in main process", process.memory_info().rss/1E9)
                 start_cycle = time.time()
 

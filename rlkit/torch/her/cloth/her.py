@@ -50,6 +50,7 @@ class ClothSacHERTrainer(TorchTrainer):
         new_data['rewards'] = data['rewards']
         new_data['terminals'] = data['terminals']
         new_data['actions'] = data['actions']
+        
 
         resampled_goals = data['resampled_goals']
 
@@ -59,6 +60,7 @@ class ClothSacHERTrainer(TorchTrainer):
         if 'images' in data.keys():
             policy_obs = data['images']
             policy_next_obs = data['next_images']
+            
         else:
             policy_obs = value_obs
             policy_next_obs = value_next_obs
@@ -87,6 +89,8 @@ class ClothSacHERTrainer(TorchTrainer):
         new_data['policy_next_obs'] = policy_next_obs
         new_data['value_obs'] = value_obs
         new_data['value_next_obs'] = value_next_obs
+
+        new_data['corner_positions'] = data['corner_positions']
 
         self._base_trainer.train_from_torch(new_data)
 

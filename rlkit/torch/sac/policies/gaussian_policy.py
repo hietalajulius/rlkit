@@ -8,6 +8,7 @@ from rlkit.torch.distributions import (
     TanhNormal, MultivariateDiagonalNormal, GaussianMixture, GaussianMixtureFull,
 )
 from rlkit.torch.networks import Mlp, CNN
+from rlkit.torch.conv_networks import CNN as LegacyCNN
 
 from rlkit.torch.sac.policies.base import (
     TorchStochasticPolicy
@@ -441,6 +442,55 @@ class TanhGaussianObsProcessorPolicy(TanhGaussianPolicy):
 
 # noinspection PyMethodOverriding
 class TanhCNNGaussianPolicy(CNN, TorchStochasticPolicy):
+    """
+    Usage:
+
+    ```
+    policy = TanhGaussianPolicy(...)
+    """
+
+    def __init__(
+            self,
+            std=None,
+            init_w=1e-3,
+            **kwargs
+    ):
+        super().__init__(
+            init_w=init_w,
+            **kwargs
+        )
+        self.vers = 0
+        obs_dim = self.input_width * self.input_height
+        action_dim = self.output_size
+        self.log_std = None
+        self.std = std
+        if std is None:
+            last_hidden_size = obs_dim
+            if len(self.hidden_sizes_main) > 0:
+                last_hidden_size = self.hidden_sizes_main[-1]
+            self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
+            self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+
+    def forward(self, obs):
+        h, h_aux = super().forward(obs, return_last_main_activations=True)
+        mean = self.last_fc_main(h)
+        if self.std is None:
+            log_std = self.last_fc_log_std(h)
+            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            std = torch.exp(log_std)
+        else:
+            std = self.std
+
+        tanh_normal = TanhNormal(mean, std)
+        return tanh_normal, h_aux
+
+
+
+class LegacyTanhCNNGaussianPolicy(LegacyCNN, TorchStochasticPolicy):
     """
     Usage:
 

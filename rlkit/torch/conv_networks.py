@@ -57,9 +57,13 @@ class CNN(nn.Module):
         self.fc_norm_layers = nn.ModuleList()
 
         self.aux_output_size = aux_output_size
+        self.aux_output_split_size = 256
+        self.aux_activation = nn.Sigmoid()
 
-        self.aux_weight = nn.Parameter(torch.ones(
-            self.aux_output_size), requires_grad=True)
+        self.aux_fc_layer_1 = nn.Linear(self.aux_output_split_size, 512)
+        self.aux_fc_layer_2 = nn.Linear(512, 512)
+        self.aux_fc_layer_3 = nn.Linear(512, aux_output_size)
+
 
         for out_channels, kernel_size, stride, padding in \
                 zip(n_channels, kernel_sizes, strides, paddings):
@@ -89,7 +93,7 @@ class CNN(nn.Module):
         for idx, hidden_size in enumerate(hidden_sizes):
             if idx == 1:
                 fc_layer = nn.Linear(
-                    fc_input_size, hidden_size+self.aux_output_size)
+                    fc_input_size, hidden_size+self.aux_output_split_size)
             else:
                 fc_layer = nn.Linear(fc_input_size, hidden_size)
 
@@ -105,7 +109,7 @@ class CNN(nn.Module):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, input):
+    def forward(self, input, return_last_activations=False):
         fc_input = (self.added_fc_input_size != 0)
 
         conv_input = input.narrow(start=0,
@@ -137,19 +141,29 @@ class CNN(nn.Module):
             # use_batch_norm=self.batch_norm_fc)
         h = self.fc_layers[0](h)
         h = self.hidden_activation(h)
-
         h = self.fc_layers[1](h)
-        h1 = h[:, :-self.aux_output_size]
-        h2 = h[:, -self.aux_output_size:]
 
-        h = self.hidden_activation(h1)
+        h1 = h[:, :-self.aux_output_split_size]
+        h2 = h[:, -self.aux_output_split_size:]
+
+        h1 = self.hidden_activation(h1)
         h1 = self.fc_layers[2](h1)
+        h1 = self.hidden_activation(h1)
         h1 = self.fc_layers[3](h1)
 
-        aux_output = self.aux_weight * h2
+        h_aux = self.hidden_activation(h2)
+        h_aux = self.aux_fc_layer_1(h_aux)
+        h_aux = self.hidden_activation(h_aux)
+        h_aux = self.aux_fc_layer_2(h_aux)
+        h_aux = self.hidden_activation(h_aux)
+        h_aux = self.aux_fc_layer_3(h_aux)
+        h_aux = self.aux_activation(h_aux)
 
-        output = self.output_activation(self.last_fc(h1))
-        return output, aux_output
+
+        if return_last_activations:
+            return h1, h_aux
+
+        return self.output_activation(self.last_fc(h1)), h_aux
 
     def apply_forward(self, input, hidden_layers, norm_layers,
                       use_batch_norm=False):
@@ -210,6 +224,7 @@ class TwoHeadDCNN(nn.Module):
         self.deconv_norm_layers = nn.ModuleList()
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
+
 
         for idx, hidden_size in enumerate(hidden_sizes):
             fc_layer = nn.Linear(fc_input_size, hidden_size)

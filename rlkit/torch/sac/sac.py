@@ -145,6 +145,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         rewards = batch['rewards']
         terminals = batch['terminals']
         actions = batch['actions']
+        corner_positions = batch['corner_positions']
 
         if 'policy_obs' in batch.keys():
             policy_obs = batch['policy_obs']
@@ -176,18 +177,18 @@ class SACTrainer(TorchTrainer, LossFunction):
         )
         policy_loss = (alpha*log_pi - q_new_actions).mean()
 
+        raw_policy_loss = policy_loss.detach()
+        raw_log_pi = log_pi.detach()
+
         #speed_loss = -0.01*self.cosine_similarity(new_obs_actions, value_obs[:, 51:54]).mean()
 
         #policy_loss += speed_loss
 
         if not aux_output is None:
-            off = torch.cat((value_obs[:, :3], value_obs[:, 6:9],
-                             value_obs[:, 12:15], value_obs[:, 18:21]), dim=1) - aux_output
-
-            off_loss = (off**2).sum(dim=1).mean()
-
+            off = corner_positions - aux_output
+            off_loss = (off**2).sum(dim=1).mean()*0.01
             # TODO: Adjust coefficient back
-            policy_loss += off_loss
+            policy_loss = policy_loss + off_loss
 
         """
         QF Loss
@@ -218,8 +219,11 @@ class SACTrainer(TorchTrainer, LossFunction):
                 ))
             eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
-            eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
-                policy_loss
+            eval_statistics['Raw Policy Loss'] = np.mean(ptu.get_numpy(
+                raw_policy_loss
+            ))
+            eval_statistics['Log Pi'] = np.mean(ptu.get_numpy(
+                raw_log_pi
             ))
             eval_statistics.update(create_stats_ordered_dict(
                 'Q1 Predictions',
@@ -242,6 +246,14 @@ class SACTrainer(TorchTrainer, LossFunction):
             if self.use_automatic_entropy_tuning:
                 eval_statistics['Alpha'] = alpha.item()
                 eval_statistics['Alpha Loss'] = alpha_loss.item()
+
+        '''
+        policy_loss = off_loss
+        qf1_loss *= 0
+        qf2_loss *= 0
+        alpha_loss *= 0
+        '''
+
 
         loss = SACLosses(
             policy_loss=policy_loss,
