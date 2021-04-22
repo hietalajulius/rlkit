@@ -186,7 +186,7 @@ class SACTrainer(TorchTrainer, LossFunction):
 
         if not aux_output is None:
             off = corner_positions - aux_output
-            off_loss = (off**2).sum(dim=1).mean()*0.01
+            off_loss = (off**2).sum(dim=1).mean()*0.001
             # TODO: Adjust coefficient back
             policy_loss = policy_loss + off_loss
 
