@@ -131,18 +131,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.num_eval_rollouts_per_epoch
             )
 
-            eval_paths = self.eval_data_collector.get_epoch_paths()
-            print("EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
-                eval_paths)['env_infos/final/is_success Mean'])
-
             if not self.preset_eval_data_collector is None:
                 self.preset_eval_data_collector.collect_new_paths(
                     self.max_path_length,
                     self.num_eval_param_buckets
                 )
-                preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
-                print("PRESET_EVAL SUCCESS RATRE", eval_util.get_generic_path_information(
-                    preset_eval_paths)['env_infos/final/is_success Mean'])
 
             print("Epoch", epoch)
 

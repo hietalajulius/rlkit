@@ -110,7 +110,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
             std = torch.from_numpy(np.array([self.std, ])).float().to(
                 ptu.device)
 
-        return TanhNormal(mean, std), None  # TODO: return aux predictions
+        return TanhNormal(mean, std), None
 
     def logprob(self, action, mean, std):
         tanh_normal = TanhNormal(mean, std)
@@ -184,7 +184,6 @@ class GaussianPolicy(Mlp, TorchStochasticPolicy):
             std = torch.from_numpy(np.array([self.std, ])).float().to(
                 ptu.device)
 
-        # NOTE: aux position preds
         return MultivariateDiagonalNormal(mean, std), None
 
 
