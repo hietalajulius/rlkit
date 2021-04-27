@@ -41,6 +41,8 @@ class CNN(PyTorchModule):
             pool_paddings=None,
             aux_output_size=1
     ):  
+
+        super(CNN, self).__init__()
         assert hidden_sizes_all[-1] == hidden_sizes_aux[0] + hidden_sizes_main[0]
         assert len(kernel_sizes) == \
             len(n_channels) == \
@@ -51,7 +53,6 @@ class CNN(PyTorchModule):
         assert pool_type in {'none', 'max2d'}
         if pool_type == 'max2d':
             assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
-        super().__init__()
 
         self.hidden_sizes_all = hidden_sizes_all
         self.hidden_sizes_aux = hidden_sizes_aux
