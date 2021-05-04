@@ -174,7 +174,8 @@ class ScriptPolicy(torch.nn.Module):
             std = self.std
 
         #tanh_normal = TanhNormal(mean, std)
-        return mean, std, h_aux
+
+        return mean, std, h_aux, torch.tanh(mean)
 
     def add_fc_layers(self, fc_input_size, fc_module_list, norm_module_list, hidden_sizes):
         for hidden_size in hidden_sizes:
@@ -288,7 +289,7 @@ class TanhScriptPolicy(ScriptPolicy, TorchStochasticPolicy):
         super().__init__(**kwargs)
     
     def forward(self, x):
-        mean, std, h_aux = super().forward(x)
+        mean, std, h_aux, _ = super().forward(x)
         tanh_normal = TanhNormal(mean, std)
         return tanh_normal, h_aux
 

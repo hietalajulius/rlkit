@@ -64,7 +64,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.save_folder = save_folder
 
     def _train(self):
-        self.training_mode(False)
+        #self.training_mode(False)
+        self.training_mode(True)
         process = psutil.Process(os.getpid())
         load_existing = False  # TODO: parametrize
         if load_existing:
@@ -143,7 +144,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 print("Cycle", cycle, epoch)
                 #print("Memory usage in main process", process.memory_info().rss/1E9)
                 start_cycle = time.time()
-
+                self.training_mode(True)
                 if not self.debug_same_batch:
                     new_expl_paths = self.expl_data_collector.collect_new_paths(
                         self.max_path_length,
@@ -156,7 +157,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     self.replay_buffer.add_paths(new_expl_paths)
                     print("Took to collect:", collection_time, "buffer size:", self.replay_buffer._size)
 
-                self.training_mode(True)
+                
                 train_start = time.time()
                 for _ in range(self.num_trains_per_train_loop):
                     if not self.debug_same_batch:
