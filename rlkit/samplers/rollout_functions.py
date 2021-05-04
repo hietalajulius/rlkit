@@ -74,6 +74,9 @@ def rollout(
         env,
         agent,
         max_path_length=np.inf,
+        save_folder=None,
+        env_timestep=None,
+        new_action_every_ctrl_step=None,
         evaluate=False,
         render=False,
         render_kwargs=None,
@@ -103,6 +106,17 @@ def rollout(
 
     o = env.reset()
 
+    if evaluate:
+        items_in_image_dir = len(os.listdir(f'{save_folder}/images/'))
+        cnn_path = f"{save_folder}/images/{items_in_image_dir}/cnn"
+        corners_path = f"{save_folder}/images/{items_in_image_dir}/corners"
+        eval_path = f"{save_folder}/images/{items_in_image_dir}/eval"
+        os.makedirs(cnn_path)
+        os.makedirs(corners_path)
+        os.makedirs(eval_path)
+        trajectory_log = []
+        trajectory_log.append(np.concatenate([env.desired_pos_step_W, env.desired_pos_ctrl_W, env.get_ee_position_I(), env.get_ee_position_W(), np.zeros(9)]))
+
 
     if reset_callback:
         reset_callback(env, agent, o)
@@ -117,9 +131,22 @@ def rollout(
             full_o_postprocess_func(env, agent, o)
 
         if evaluate:
-            env.capture_image(aux_output, path_length)
+            train_image, eval_image = env.capture_image(aux_output)
+            cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/corners/{str(path_length).zfill(3)}.png', train_image)
+            cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/eval/{str(path_length).zfill(3)}.png', eval_image)
+
+            if "image" in o.keys():
+                data = o['image'].copy().reshape((100, 100, 1))
+                cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/cnn/{str(path_length).zfill(3)}.png', data*255)
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a), evaluation=evaluate)
+
+        if evaluate:
+            delta = env.get_ee_position_W() - trajectory_log[-1][9:12]
+            velocity = delta / (env_timestep*new_action_every_ctrl_step)
+            acceleration = (velocity - trajectory_log[-1][15:18]) / (env_timestep*new_action_every_ctrl_step)
+            
+            trajectory_log.append(np.concatenate([env.desired_pos_step_W, env.desired_pos_ctrl_W, env.get_ee_position_I(), env.get_ee_position_W(), delta, velocity, acceleration]))
         # print("Step")
         observations.append(o)
         rewards.append(r)
@@ -133,6 +160,11 @@ def rollout(
         if d:
             break
         o = next_o
+
+    if evaluate:
+        np.savetxt(f"{save_folder}/eval_trajs/{items_in_image_dir}.csv",
+                    trajectory_log, delimiter=",", fmt='%f')
+
     actions = np.array(actions)
     if len(actions.shape) == 1:
         actions = np.expand_dims(actions, 1)

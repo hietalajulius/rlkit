@@ -107,6 +107,9 @@ class KeyPathCollector(MdpPathCollector):
             observation_key='observation',
             desired_goal_key='desired_goal',
             additional_keys=[],
+            save_folder=None,
+            env_timestep=None,
+            new_action_every_ctrl_step=None,
             goal_sampling_mode=None,
             **kwargs
     ):
@@ -122,6 +125,9 @@ class KeyPathCollector(MdpPathCollector):
             preprocess_obs_for_policy_fn=obs_processor,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
+        self.save_folder = save_folder
+        self.env_timestep = env_timestep
+        self.new_action_every_ctrl_step = new_action_every_ctrl_step
         self._observation_key = observation_key
         self._desired_goal_key = desired_goal_key
         self._goal_sampling_mode = goal_sampling_mode
@@ -159,7 +165,10 @@ class EvalKeyPathCollector(KeyPathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length,
-                evaluate=evaluate
+                evaluate=evaluate,
+                save_folder=self.save_folder,
+                env_timestep=self.env_timestep,
+                new_action_every_ctrl_step=self.new_action_every_ctrl_step
             )
             path_len = len(path['actions'])
             num_steps_collected += path_len
