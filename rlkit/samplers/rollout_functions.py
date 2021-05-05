@@ -143,6 +143,7 @@ def rollout(
 
         if evaluate:
             delta = env.get_ee_position_W() - trajectory_log[-1][9:12]
+            
             velocity = delta / (env_timestep*new_action_every_ctrl_step)
             acceleration = (velocity - trajectory_log[-1][15:18]) / (env_timestep*new_action_every_ctrl_step)
             
