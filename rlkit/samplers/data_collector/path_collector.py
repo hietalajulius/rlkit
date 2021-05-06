@@ -43,6 +43,7 @@ class MdpPathCollector(PathCollector):
             max_path_length,
             num_steps,
             discard_incomplete_paths,
+            use_demos=False
     ):
         paths = []
         num_steps_collected = 0
@@ -66,8 +67,11 @@ class MdpPathCollector(PathCollector):
                     and discard_incomplete_paths
             ):
                 break
-            num_steps_collected += path_len
-            paths.append(path)
+            if use_demos and not path['terminals'][-1]:
+                print("Not successful demo, skipping")
+            else:
+                num_steps_collected += path_len
+                paths.append(path)
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
@@ -131,6 +135,7 @@ class KeyPathCollector(MdpPathCollector):
             preprocess_obs_for_policy_fn=obs_processor,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
+        self.use_demos = use_demos
         self.save_folder = save_folder
         self.env_timestep = env_timestep
         self.new_action_every_ctrl_step = new_action_every_ctrl_step
@@ -140,7 +145,7 @@ class KeyPathCollector(MdpPathCollector):
 
     def collect_new_paths(self, *args, **kwargs):
         self._env.goal_sampling_mode = self._goal_sampling_mode
-        return super().collect_new_paths(*args, **kwargs)
+        return super().collect_new_paths(*args, **kwargs, use_demos=self.use_demos)
 
     def get_snapshot(self):
         snapshot = super().get_snapshot()
