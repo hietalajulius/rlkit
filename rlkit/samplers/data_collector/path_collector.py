@@ -24,6 +24,7 @@ class MdpPathCollector(PathCollector):
     ):
         if render_kwargs is None:
             render_kwargs = {}
+
         self._env = env
         self._policy = policy
         self._max_num_epoch_paths_saved = max_num_epoch_paths_saved
@@ -107,6 +108,8 @@ class KeyPathCollector(MdpPathCollector):
             observation_key='observation',
             desired_goal_key='desired_goal',
             additional_keys=[],
+            use_demos=False,
+            demo_path=None,
             save_folder=None,
             env_timestep=None,
             new_action_every_ctrl_step=None,
@@ -122,6 +125,9 @@ class KeyPathCollector(MdpPathCollector):
 
         rollout_fn = partial(
             rollout,
+            save_folder=save_folder,
+            use_demos=use_demos,
+            demo_path=demo_path,
             preprocess_obs_for_policy_fn=obs_processor,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)

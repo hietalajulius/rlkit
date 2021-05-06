@@ -30,6 +30,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
             preset_evaluation_data_collector: PathCollector = None,
+            demo_data_collector: PathCollector = None,
+            num_demos= 0,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             num_eval_param_buckets=1,
@@ -43,11 +45,14 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             exploration_data_collector,
             evaluation_data_collector,
             preset_evaluation_data_collector,
+            demo_data_collector,
             replay_buffer,
         )
         # TODO: fix spaghetti
         self.task_reward_function = copy.deepcopy(
             replay_buffer.task_reward_function)
+
+        self.num_demos = num_demos
 
         self.batch_size = batch_size
         self.max_path_length = max_path_length
@@ -66,6 +71,17 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def _train(self):
         #self.training_mode(False)
         self.training_mode(True)
+        if not self.demo_data_collector is None:
+            print("Collectinf deoms mofo")
+            demo_paths = self.demo_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_demos*self.max_path_length,
+                discard_incomplete_paths=False,
+            )
+            self.replay_buffer.add_paths(demo_paths)
+
+
+
         process = psutil.Process(os.getpid())
         load_existing = False  # TODO: parametrize
         if load_existing:

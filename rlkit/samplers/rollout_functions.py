@@ -73,6 +73,8 @@ def contextual_rollout(
 def rollout(
         env,
         agent,
+        use_demos=False,
+        demo_path=None,
         max_path_length=np.inf,
         save_folder=None,
         env_timestep=None,
@@ -106,7 +108,11 @@ def rollout(
 
     o = env.reset()
 
-    if evaluate:
+
+    if use_demos:
+        predefined_actions = np.genfromtxt(demo_path, delimiter=',')[20:] #TODO: clip the demos themselves
+
+    if evaluate or use_demos:
         items_in_image_dir = len(os.listdir(f'{save_folder}/images/'))
         cnn_path = f"{save_folder}/images/{items_in_image_dir}/cnn"
         corners_path = f"{save_folder}/images/{items_in_image_dir}/corners"
@@ -127,10 +133,14 @@ def rollout(
         a, agent_info, aux_output = agent.get_action(
             o_for_agent, **get_action_kwargs)
 
+        if use_demos:
+            delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
+            a = delta/env.max_advance
+
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        if evaluate:
+        if evaluate or use_demos:
             train_image, eval_image = env.capture_image(aux_output)
             cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/corners/{str(path_length).zfill(3)}.png', train_image)
             cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/eval/{str(path_length).zfill(3)}.png', eval_image)
@@ -148,7 +158,7 @@ def rollout(
             acceleration = (velocity - trajectory_log[-1][15:18]) / (env_timestep*new_action_every_ctrl_step)
             
             trajectory_log.append(np.concatenate([env.desired_pos_step_W, env.desired_pos_ctrl_W, env.get_ee_position_I(), env.get_ee_position_W(), delta, velocity, acceleration]))
-        # print("Step")
+
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
