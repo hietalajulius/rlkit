@@ -112,7 +112,7 @@ def rollout(
     if use_demos:
         predefined_actions = np.genfromtxt(demo_path, delimiter=',')[20:] #TODO: clip the demos themselves
 
-    if evaluate or use_demos:
+    if evaluate:
         items_in_image_dir = len(os.listdir(f'{save_folder}/images/'))
         cnn_path = f"{save_folder}/images/{items_in_image_dir}/cnn"
         corners_path = f"{save_folder}/images/{items_in_image_dir}/corners"
@@ -140,7 +140,7 @@ def rollout(
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        if evaluate or use_demos:
+        if evaluate:
             train_image, eval_image = env.capture_image(aux_output)
             cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/corners/{str(path_length).zfill(3)}.png', train_image)
             cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/eval/{str(path_length).zfill(3)}.png', eval_image)
