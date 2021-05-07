@@ -73,14 +73,16 @@ class MdpPathCollector(PathCollector):
             if use_demos:
                 demo_tries += 1
                 if not path['terminals'][-1]:
-                    print("Not successful demo, breaking", len(paths), demo_successes, "/", demo_tries)
+                    print("Not successful demo", len(paths), demo_successes, "/", demo_tries)
                     break
                 else:
                     demo_successes += 1
                     print("Demo success", len(paths), demo_successes, "/", demo_tries)
-
-            num_steps_collected += path_len
-            paths.append(path)
+                    num_steps_collected += path_len
+                    paths.append(path)
+            else:
+                num_steps_collected += path_len
+                paths.append(path)
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
