@@ -48,6 +48,7 @@ class MdpPathCollector(PathCollector):
         paths = []
         num_steps_collected = 0
         demo_tries = 0
+        demo_successes = 0
         while num_steps_collected < num_steps:
             max_path_length_this_loop = min(  # Do not go over num_steps
                 max_path_length,
@@ -72,10 +73,11 @@ class MdpPathCollector(PathCollector):
             if use_demos:
                 demo_tries += 1
                 if not path['terminals'][-1]:
-                    print("Not successful demo, breaking", len(paths), demo_tries)
+                    print("Not successful demo, breaking", len(paths), demo_successes, "/", demo_trie)
                     break
                 else:
-                    print("Demo success", len(paths), demo_tries)
+                    demo_successes += 1
+                    print("Demo success", len(paths), demo_successes, "/", demo_tries)
 
             num_steps_collected += path_len
             paths.append(path)
