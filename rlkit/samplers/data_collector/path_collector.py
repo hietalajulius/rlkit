@@ -72,6 +72,7 @@ class MdpPathCollector(PathCollector):
 
             if use_demos:
                 demo_tries += 1
+                print("Last terminal", path['terminals'][-1])
                 if not path['terminals'][-1]:
                     print("Not successful demo", len(paths), demo_successes, "/", demo_tries)
                 else:
