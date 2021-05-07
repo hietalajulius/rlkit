@@ -73,7 +73,7 @@ class MdpPathCollector(PathCollector):
             if use_demos:
                 demo_tries += 1
                 if not path['terminals'][-1]:
-                    print("Not successful demo, breaking", len(paths), demo_successes, "/", demo_trie)
+                    print("Not successful demo, breaking", len(paths), demo_successes, "/", demo_tries)
                     break
                 else:
                     demo_successes += 1
