@@ -149,7 +149,8 @@ def rollout(
                 data = o['image'].copy().reshape((100, 100, 1))
                 cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/cnn/{str(path_length).zfill(3)}.png', data*255)
 
-        next_o, r, d, env_info = env.step(copy.deepcopy(a), evaluation=evaluate)
+
+        next_o, r, d, env_info = env.step(copy.deepcopy(a))
 
         if evaluate:
             delta = env.get_ee_position_W() - trajectory_log[-1][9:12]
