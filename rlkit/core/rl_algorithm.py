@@ -125,27 +125,25 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         ates = np.array(ates)
         '''
 
-        self.writer.add_scalar('expl/Error Norm/Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/error_norm Mean'], epoch)
-        self.writer.add_scalar('expl/Task Reward/Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/task_reward Mean'], epoch)
-        self.writer.add_scalar('expl/Control Penalty /Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/control_penalty Mean'], epoch)
-        self.writer.add_scalar('expl/Scaled Control Penalty (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/control_penalty Mean'], epoch)
-        self.writer.add_scalar('expl/Reward/Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/reward Mean'], epoch)
-        self.writer.add_scalar('expl/Cosine similarity/Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/cosine_similarity Mean'], epoch)
-        self.writer.add_scalar('expl/Cosine similarity penalty/Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/cosine_similarity_penalty Mean'], epoch)
-        self.writer.add_scalar('expl/Delta size penalty/Mean', eval_util.get_generic_path_information(expl_paths)[
+        self.writer.add_scalar('expl/delta_size_penalty', eval_util.get_generic_path_information(expl_paths)[
                           'env_infos/delta_size_penalty Mean'], epoch)
-        self.writer.add_scalar('expl/Delta size (info)/Mean', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/delta_size Mean'], epoch)
-        self.writer.add_scalar('expl/Reward/Mean', eval_util.get_generic_path_information(expl_paths)[
+
+        self.writer.add_scalar('expl/ate_penalty', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/ate_penalty Mean'], epoch)
+
+        self.writer.add_scalar('expl/task_reward', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/task_reward Mean'], epoch)
+
+        self.writer.add_scalar('expl/control_penalty', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/control_penalty Mean'], epoch)
+
+        self.writer.add_scalar('expl/cosine_similarity', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/cosine_similarity Mean'], epoch)
+
+        self.writer.add_scalar('expl/reward', eval_util.get_generic_path_information(expl_paths)[
                           'Rewards Mean'], epoch)
-        self.writer.add_scalar('expl/Returns/Mean', eval_util.get_generic_path_information(expl_paths)[
+
+        self.writer.add_scalar('expl/returns', eval_util.get_generic_path_information(expl_paths)[
                           'Returns Mean'], epoch)
         
 

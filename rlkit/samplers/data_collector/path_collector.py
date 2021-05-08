@@ -250,6 +250,9 @@ class VectorizedKeyPathCollector(MdpPathCollector):
             *args,
             observation_key='observation',
             desired_goal_key='desired_goal',
+            use_demos=False,
+            demo_path=None,
+            num_demoers=0,
             additional_keys=[],
             goal_sampling_mode=None,
             processes=1,
@@ -264,6 +267,9 @@ class VectorizedKeyPathCollector(MdpPathCollector):
 
         rollout_fn = partial(
             vec_env_rollout,
+            use_demos=use_demos,
+            demo_path=demo_path,
+            num_demoers=num_demoers,
             processes=processes,
             preprocess_obs_for_policy_fn=obs_processor,
         )

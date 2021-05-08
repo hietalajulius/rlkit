@@ -68,7 +68,6 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         self._actions = np.zeros((max_size, self._action_dim))
         self._control_penalties = np.zeros((max_size, 1))
         self._corner_positions = np.zeros((max_size, 8))
-        self._ctrl_penalty_onlys = np.zeros((max_size, 1), dtype=bool)
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_size, 1), dtype='uint8')
         # self._obs[key][i] is the value of observation[key] at time i
@@ -114,8 +113,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
                                       for info in path['env_infos']])
         corner_positions = np.array([info['corner_positions']
                                       for info in path['env_infos']])
-        ctrl_penalty_only = np.array([info['ctrl_penalty_only']
-                                      for info in path['env_infos']]).reshape((-1,1))
+
 
 
         path_len = len(terminals)
@@ -155,7 +153,6 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             ]:
                 self._actions[buffer_slice] = actions[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
-                self._ctrl_penalty_onlys[buffer_slice] = ctrl_penalty_only[path_slice]
                 self._corner_positions[buffer_slice] = corner_positions[path_slice]
                 self._control_penalties[buffer_slice] = control_penalties[path_slice]
                 
@@ -182,7 +179,6 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
             self._terminals[slc] = terminals
-            self._ctrl_penalty_onlys[slc] = ctrl_penalty_only
             self._control_penalties[slc] = control_penalties
             self._corner_positions[slc] = corner_positions
             for key in self.ob_keys_to_save + self.internal_keys:
@@ -244,7 +240,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         new_task_rewards = self.task_reward_function(
             new_next_obs_dict[self.achieved_goal_key],
             new_next_obs_dict[self.desired_goal_key],
-            dict(ctrl_penalty_onlys=self._ctrl_penalty_onlys[indices])
+            dict()
         )
 
         control_penalties = self._control_penalties[indices].flatten()
