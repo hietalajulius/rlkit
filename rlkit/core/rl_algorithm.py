@@ -127,6 +127,9 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         self.writer.add_scalar('expl/delta_size_penalty', eval_util.get_generic_path_information(expl_paths)[
                           'env_infos/delta_size_penalty Mean'], epoch)
+        
+        self.writer.add_scalar('expl/delta_size', eval_util.get_generic_path_information(expl_paths)[
+                          'env_infos/delta_size Mean'], epoch)
 
         self.writer.add_scalar('expl/ate_penalty', eval_util.get_generic_path_information(expl_paths)[
                           'env_infos/ate_penalty Mean'], epoch)
