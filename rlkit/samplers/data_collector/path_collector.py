@@ -19,6 +19,9 @@ class MdpPathCollector(PathCollector):
             max_num_epoch_paths_saved=None,
             render=False,
             render_kwargs=None,
+            use_demos=False,
+            demo_path=None,
+            num_demoers=0,
             rollout_fn=rollout,
             save_env_in_snapshot=False,  # WTFFF
     ):
@@ -32,6 +35,9 @@ class MdpPathCollector(PathCollector):
         self._render = render
         self._render_kwargs = render_kwargs
         self._rollout_fn = rollout_fn
+        self.use_demos=use_demos
+        self.demo_path=demo_path
+        self.num_demoers=num_demoers
 
         self._num_steps_total = 0
         self._num_paths_total = 0
@@ -42,8 +48,7 @@ class MdpPathCollector(PathCollector):
             self,
             max_path_length,
             num_steps,
-            discard_incomplete_paths,
-            use_demos=False
+            discard_incomplete_paths
     ):
         paths = []
         num_steps_collected = 0
@@ -61,6 +66,8 @@ class MdpPathCollector(PathCollector):
             path = self._rollout_fn(
                 self._env,
                 self._policy,
+                use_demos=self.use_demos,
+                demo_path=self.demo_path,
                 max_path_length=max_path_length_this_loop,
                 render=self._render,
                 render_kwargs=self._render_kwargs,
@@ -72,8 +79,8 @@ class MdpPathCollector(PathCollector):
                     and discard_incomplete_paths
             ):
                 break
-
-            if use_demos:
+            
+            if self.use_demos:
                 demo_tries += 1
                 successes = np.array([info['is_success']
                                       for info in path['env_infos']])
@@ -84,7 +91,6 @@ class MdpPathCollector(PathCollector):
                     print("Demo success", len(paths), demo_successes, "/", demo_tries)
                     num_steps_collected += path_len
                     paths.append(path)
-                print("\n")
             else:
                 num_steps_collected += path_len
                 paths.append(path)
@@ -128,8 +134,6 @@ class KeyPathCollector(MdpPathCollector):
             observation_key='observation',
             desired_goal_key='desired_goal',
             additional_keys=[],
-            use_demos=False,
-            demo_path=None,
             save_folder=None,
             env_timestep=None,
             new_action_every_ctrl_step=None,
@@ -146,8 +150,6 @@ class KeyPathCollector(MdpPathCollector):
         rollout_fn = partial(
             rollout,
             save_folder=save_folder,
-            use_demos=use_demos,
-            demo_path=demo_path,
             preprocess_obs_for_policy_fn=obs_processor,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
@@ -252,9 +254,6 @@ class VectorizedKeyPathCollector(MdpPathCollector):
             *args,
             observation_key='observation',
             desired_goal_key='desired_goal',
-            use_demos=False,
-            demo_path=None,
-            num_demoers=0,
             additional_keys=[],
             goal_sampling_mode=None,
             processes=1,
@@ -269,9 +268,6 @@ class VectorizedKeyPathCollector(MdpPathCollector):
 
         rollout_fn = partial(
             vec_env_rollout,
-            use_demos=use_demos,
-            demo_path=demo_path,
-            num_demoers=num_demoers,
             processes=processes,
             preprocess_obs_for_policy_fn=obs_processor,
         )
@@ -296,6 +292,9 @@ class VectorizedKeyPathCollector(MdpPathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length,
+                use_demos=self.use_demos,
+                demo_path=self.demo_path,
+                num_demoers=self.num_demoers
             )
             collected_paths_len = 0
             for path in collected_paths:
