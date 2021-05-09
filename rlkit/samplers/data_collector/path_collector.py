@@ -50,10 +50,13 @@ class MdpPathCollector(PathCollector):
         demo_tries = 0
         demo_successes = 0
         while num_steps_collected < num_steps:
-            max_path_length_this_loop = min(  # Do not go over num_steps
+            max_path_length_this_loop = max_path_length
+            '''
+            min(  
                 max_path_length,
                 num_steps - num_steps_collected,
             )
+            '''
 
             path = self._rollout_fn(
                 self._env,
@@ -74,7 +77,6 @@ class MdpPathCollector(PathCollector):
                 demo_tries += 1
                 successes = np.array([info['is_success']
                                       for info in path['env_infos']])
-                print("Demo terminals", np.any(successes))
                 if not np.any(successes):
                     print("Not successful demo", len(paths), demo_successes, "/", demo_tries)
                 else:
@@ -82,6 +84,7 @@ class MdpPathCollector(PathCollector):
                     print("Demo success", len(paths), demo_successes, "/", demo_tries)
                     num_steps_collected += path_len
                     paths.append(path)
+                print("\n")
             else:
                 num_steps_collected += path_len
                 paths.append(path)
@@ -148,7 +151,6 @@ class KeyPathCollector(MdpPathCollector):
             preprocess_obs_for_policy_fn=obs_processor,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
-        self.use_demos = use_demos
         self.save_folder = save_folder
         self.env_timestep = env_timestep
         self.new_action_every_ctrl_step = new_action_every_ctrl_step
@@ -158,7 +160,7 @@ class KeyPathCollector(MdpPathCollector):
 
     def collect_new_paths(self, *args, **kwargs):
         self._env.goal_sampling_mode = self._goal_sampling_mode
-        return super().collect_new_paths(*args, **kwargs, use_demos=self.use_demos)
+        return super().collect_new_paths(*args, **kwargs)
 
     def get_snapshot(self):
         snapshot = super().get_snapshot()
