@@ -143,9 +143,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.writer.add_scalar('expl/control_penalty', eval_util.get_generic_path_information(expl_paths)[
                           'env_infos/control_penalty Mean'], epoch)
 
-        self.writer.add_scalar('expl/cosine_similarity', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/cosine_similarity Mean'], epoch)
-
         self.writer.add_scalar('expl/reward', eval_util.get_generic_path_information(expl_paths)[
                           'Rewards Mean'], epoch)
 
