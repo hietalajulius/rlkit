@@ -136,6 +136,7 @@ def rollout(
         if use_demos:
             delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
             a = delta/env.max_advance
+            a = np.clip(a, -1, 1)
 
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
