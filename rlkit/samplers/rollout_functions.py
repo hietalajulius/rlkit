@@ -147,8 +147,10 @@ def rollout(
             cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/eval/{str(path_length).zfill(3)}.png', eval_image)
 
             if "image" in o.keys():
-                data = o['image'].copy().reshape((100, 100, 1))
-                cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/cnn/{str(path_length).zfill(3)}.png', data*255)
+                data = o['image'].copy().reshape((-1, 100, 100))
+                for i, image in enumerate(data):
+                    reshaped_image = image.reshape(100,100, 1)
+                    cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/cnn/{str(path_length).zfill(3)}_{i}.png', reshaped_image*255)
 
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))

@@ -36,7 +36,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             min_num_steps_before_training=0,
             num_eval_param_buckets=1,
             save_policy_every_epoch=1,
-            debug_same_batch=False
+            debug_same_batch=False,
+            script_policy=None
     ):
         super().__init__(
             trainer,
@@ -67,40 +68,18 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.debug_same_batch = debug_same_batch
         self.title = title
         self.save_folder = save_folder
+        self.script_policy = script_policy
 
     def _train(self):
-        #self.training_mode(False)
         self.training_mode(True)
         if not self.demo_data_collector is None:
-            print("Collectinf demos:", self.num_demos*self.max_path_length)
+            print("Collecting demos:", self.num_demos*self.max_path_length)
             demo_paths = self.demo_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_demos*self.max_path_length,
                 discard_incomplete_paths=False,
             )
             self.replay_buffer.add_paths(demo_paths)
-
-
-
-        process = psutil.Process(os.getpid())
-        load_existing = False  # TODO: parametrize
-        if load_existing:
-            self.trainer._base_trainer.policy.load_state_dict(torch.load(
-                f"{self.save_folder}/policies/current_policy.mdl"))
-            self.trainer._base_trainer.alpha_optimizer.load_state_dict(
-                torch.load(f'{self.save_folder}/policies/current_alpha_optimizer.mdl'))
-            self.trainer._base_trainer.policy_optimizer.load_state_dict(
-                torch.load(f'{self.save_folder}/policies/current_policy_optimizer.mdl'))
-            self.trainer._base_trainer.qf1_optimizer.load_state_dict(
-                torch.load(f'{self.save_folder}/policies/current_qf1_optimizer.mdl'))
-            self.trainer._base_trainer.qf2_optimizer.load_state_dict(
-                torch.load(f'{self.save_folder}/policies/current_qf2_optimizer.mdl'))
-            '''
-            with open(f'{self.save_folder}/policies/buffer_data.pkl', 'rb') as inp:
-                self.replay_buffer = pickle.load(inp)
-            '''
-            self.replay_buffer.set_task_reward_function(
-                self.task_reward_function)
 
         start_time = time.time()
 
@@ -119,26 +98,18 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         for epoch in range(self._start_epoch, self.num_epochs):
             if epoch % self.save_policy_every_epoch == 0:
-                torch.save(
-                    self.trainer._base_trainer.policy.state_dict(), f'{self.save_folder}/policies/current_policy.mdl')
-                torch.save(
-                    self.trainer._base_trainer.alpha_optimizer.state_dict(), f'{self.save_folder}/policies/current_alpha_optimizer.mdl')
-                torch.save(
-                    self.trainer._base_trainer.policy_optimizer.state_dict(), f'{self.save_folder}/policies/current_policy_optimizer.mdl')
-                torch.save(
-                    self.trainer._base_trainer.qf1_optimizer.state_dict(), f'{self.save_folder}/policies/current_qf1_optimizer.mdl')
-                torch.save(
-                    self.trainer._base_trainer.qf2_optimizer.state_dict(), f'{self.save_folder}/policies/current_qf2_optimizer.mdl')
+                items_in_policy_dir = len(os.listdir(f'{self.save_folder}/policies'))
+                policy_path = f'{self.save_folder}/policies/policy_{items_in_policy_dir}'
+                torch.save(self.trainer._base_trainer.policy.state_dict(), f'{policy_path}.mdl')
+                print(f"Saved {policy_path}.mdl")
 
-                #self.replay_buffer.set_task_reward_function(None)
-                '''
-                with open(f'{self.save_folder}/policies/buffer_data.pkl', 'wb') as outp:
-                    pickle.dump(self.replay_buffer, outp,
-                                pickle.HIGHEST_PROTOCOL)
-                '''
-                self.replay_buffer.set_task_reward_function(
-                    self.task_reward_function)
-                print("Saved current policy and maybereplay buffer")
+                if not self.script_policy is None:
+                    self.script_policy.load_state_dict(torch.load(f'{policy_path}.mdl', map_location='cpu'))
+                    self.script_policy.eval()
+                    sm = torch.jit.script(self.script_policy).cpu()
+                    torch.jit.save(sm, f'{policy_path}.pt')
+                    print(f"Saved {policy_path}.pt")
+                
 
             files = glob.glob('success_images/*')
             for f in files:
@@ -182,6 +153,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     self.trainer.train(train_data)
                 self.training_mode(False)
                 train_time = time.time() - train_start
-                print("Took to train", train_time)
+                print("Took to train", train_time, "Time:", time.asctime())
             self._end_epoch(epoch)
             print("Seconds since start", time.time() - start_time)

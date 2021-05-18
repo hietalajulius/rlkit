@@ -24,7 +24,6 @@ class ScriptPolicy(torch.nn.Module):
             n_channels,
             strides,
             paddings,
-            hidden_sizes_all=[],
             hidden_sizes_aux=[],
             hidden_sizes_main=[],
             added_fc_input_size=0,
@@ -42,7 +41,6 @@ class ScriptPolicy(torch.nn.Module):
             std=None):
         super(ScriptPolicy, self).__init__()
         # CNN
-        assert hidden_sizes_all[-1] == hidden_sizes_aux[0] + hidden_sizes_main[0]
         assert len(kernel_sizes) == \
             len(n_channels) == \
             len(strides) == \
@@ -53,7 +51,6 @@ class ScriptPolicy(torch.nn.Module):
         if pool_type == 'max2d':
             assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
 
-        self.hidden_sizes_all = hidden_sizes_all
         self.hidden_sizes_aux = hidden_sizes_aux
         self.hidden_sizes_main = hidden_sizes_main
         self.input_width = input_width
@@ -77,11 +74,9 @@ class ScriptPolicy(torch.nn.Module):
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
         self.pool_layers = nn.ModuleList()
-        self.fc_all_layers = nn.ModuleList()
         self.fc_aux_layers = nn.ModuleList()
         self.fc_main_layers = nn.ModuleList()
 
-        self.fc_all_norm_layers = nn.ModuleList()
         self.fc_aux_norm_layers = nn.ModuleList()
         self.fc_main_norm_layers = nn.ModuleList()
 
@@ -128,24 +123,20 @@ class ScriptPolicy(torch.nn.Module):
 
         self.conv_output_flat_size = int(np.prod(test_mat.shape))
 
-        fc_all_input_size = self.conv_output_flat_size
-        fc_all_input_size += added_fc_input_size
-        self.add_fc_layers(fc_all_input_size, self.fc_all_layers, self.fc_all_norm_layers, self.hidden_sizes_all)
+        fc_main_input_size = self.conv_output_flat_size + added_fc_input_size
+        fc_aux_input_size = self.conv_output_flat_size
 
-        self.add_fc_layers(self.hidden_sizes_aux[0], self.fc_aux_layers, self.fc_aux_norm_layers, self.hidden_sizes_aux[1:])
-        self.last_fc_aux = nn.Linear(self.hidden_sizes_aux[-1], aux_output_size)
-        self.last_fc_aux.weight.data.uniform_(-init_w, init_w)
-        self.last_fc_aux.bias.data.uniform_(-init_w, init_w)
-
-
-        self.add_fc_layers(self.hidden_sizes_main[0], self.fc_main_layers, self.fc_main_norm_layers, self.hidden_sizes_main[1:])
+        self.add_fc_layers(fc_main_input_size, self.fc_main_layers, self.fc_main_norm_layers, self.hidden_sizes_main)
         self.last_fc_main = nn.Linear(self.hidden_sizes_main[-1], output_size)
         self.last_fc_main.weight.data.uniform_(-init_w, init_w)
         self.last_fc_main.bias.data.uniform_(-init_w, init_w)
 
+        self.add_fc_layers(fc_aux_input_size, self.fc_aux_layers, self.fc_aux_norm_layers, self.hidden_sizes_aux)
+        self.last_fc_aux = nn.Linear(self.hidden_sizes_aux[-1], aux_output_size)
+        self.last_fc_aux.weight.data.uniform_(-init_w, init_w)
+        self.last_fc_aux.bias.data.uniform_(-init_w, init_w)
+
         # TanhCNNGaussianPolicy
-        self.foo = "bar"
-        self.vers = 0
         obs_dim = self.input_width * self.input_height
         action_dim = self.output_size
         self.log_std = None
@@ -173,8 +164,6 @@ class ScriptPolicy(torch.nn.Module):
         else:
             std = self.std
 
-        #tanh_normal = TanhNormal(mean, std)
-
         return mean, std, h_aux, torch.tanh(mean)
 
     def add_fc_layers(self, fc_input_size, fc_module_list, norm_module_list, hidden_sizes):
@@ -196,49 +185,34 @@ class ScriptPolicy(torch.nn.Module):
         conv_input = input.narrow(start=0,
                                   length=self.conv_input_length,
                                   dim=1).contiguous()
-        # reshape from batch of flattened images into (channels, w, h)
         h = conv_input.view(conv_input.shape[0],
                             self.input_channels,
                             self.input_height,
                             self.input_width)
 
-        #debug_image = h[0].detach().cpu().numpy()
-        #cv2.imshow('goal', debug_image.reshape((100, 100, 1)))
-        #cv2.waitKey(10)
-        
-        #data = h.reshape((100, 100, 1)).cpu().numpy().copy()
-        #cv2.imwrite(f'./train_images/{str(np.random.rand())}.png', data)
-
-        #image = h.reshape((100, 100, 1)).cpu().numpy().copy()
-        
 
         h = self.apply_forward_conv(h)
-
-    
-
-        # flatten channels for fc layers
         h = h.view(h.size(0), -1)
+
+
+        h_main = h
+        h_aux = h
+
         if self.added_fc_input_size != 0:
             extra_fc_input = input.narrow(
                 start=self.conv_input_length,
                 length=self.added_fc_input_size,
                 dim=1,
             )
-            h = torch.cat((h, extra_fc_input), dim=1)
+            h_main = torch.cat((h_main, extra_fc_input), dim=1)
 
-        h_all = h# self.apply_forward_fc(h, self.fc_all_layers, self.fc_all_norm_layers)
-
-        for i, layer in enumerate(self.fc_all_layers):
-            h_all = layer(h_all)
+        for i, layer in enumerate(self.fc_main_layers):
+            h_main = layer(h_main)
             if self.fc_normalization_type != 'none':
                 pass
                 #h = norm_layers[i](h)
-            h_all = self.hidden_activation(h_all)
+            h_main = self.hidden_activation(h_main)
 
-        h_aux = h_all[:, self.hidden_sizes_main[-1]:]
-        h_main = h_all[:, :self.hidden_sizes_main[-1]]
-
-        #h_aux = self.apply_forward_fc(h_aux, self.fc_aux_layers, self.fc_aux_norm_layers)
 
         for i, layer in enumerate(self.fc_aux_layers):
             h_aux = layer(h_aux)
@@ -246,14 +220,6 @@ class ScriptPolicy(torch.nn.Module):
                 pass
                 #h = norm_layers[i](h)
             h_aux = self.hidden_activation(h_aux)
-
-        #h_main = self.apply_forward_fc(h_main, self.fc_main_layers, self.fc_main_norm_layers)
-        for i, layer in enumerate(self.fc_main_layers):
-            h_main = layer(h_main)
-            if self.fc_normalization_type != 'none':
-                pass
-                #h = norm_layers[i](h)
-            h_main = self.hidden_activation(h_main)
 
         h_aux = self.last_fc_aux(h_aux)
         h_aux = self.aux_activation(h_aux)
@@ -272,15 +238,6 @@ class ScriptPolicy(torch.nn.Module):
             if self.pool_type != 'none':
                 pass
                 #3h = self.pool_layers[i](h)
-            h = self.hidden_activation(h)
-        return h
-
-    def apply_forward_fc(self, h, layers, norm_layers):
-        for i, layer in enumerate(layers):
-            h = layer(h)
-            if self.fc_normalization_type != 'none':
-                pass
-                #h = norm_layers[i](h)
             h = self.hidden_activation(h)
         return h
 
