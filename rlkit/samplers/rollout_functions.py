@@ -179,6 +179,8 @@ def rollout(
     if evaluate:
         np.savetxt(f"{save_folder}/eval_trajs/{items_in_image_dir}.csv",
                     trajectory_log, delimiter=",", fmt='%f')
+        np.savetxt(f"{save_folder}/eval_trajs/executable_deltas_{items_in_image_dir}.csv",
+                    np.array(trajectory_log)[:,12:15], delimiter=",", fmt='%f')
 
     actions = np.array(actions)
     if len(actions.shape) == 1:

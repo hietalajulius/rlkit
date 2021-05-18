@@ -98,7 +98,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         for epoch in range(self._start_epoch, self.num_epochs):
             if epoch % self.save_policy_every_epoch == 0:
-                items_in_policy_dir = len(os.listdir(f'{self.save_folder}/policies'))
+                items_in_policy_dir = len(os.listdir(f'{self.save_folder}/policies'))/2
                 policy_path = f'{self.save_folder}/policies/policy_{items_in_policy_dir}'
                 torch.save(self.trainer._base_trainer.policy.state_dict(), f'{policy_path}.mdl')
                 print(f"Saved {policy_path}.mdl")

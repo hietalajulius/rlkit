@@ -219,6 +219,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
                 for i, ids in enumerate(future_indices)
             ])
 
+
             resampled_goals[-num_future_goals:] = self._next_obs[
                 self.achieved_goal_key
             ][future_obs_idxs]
@@ -240,7 +241,7 @@ class FutureObsDictRelabelingBuffer(ReplayBuffer):
         new_task_rewards = self.task_reward_function(
             new_next_obs_dict[self.achieved_goal_key],
             new_next_obs_dict[self.desired_goal_key],
-            dict()
+            dict(num_future_goals=num_future_goals)
         )
 
         control_penalties = self._control_penalties[indices].flatten()
