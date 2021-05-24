@@ -3,7 +3,7 @@ from gym.spaces import Dict, Discrete
 
 from rlkit.data_management.replay_buffer import ReplayBuffer
 import copy
-from gym.envs.robotics import task_definitions, reward_calculation
+from clothmanip.utils import task_definitions, reward_calculation
 
 
 class FutureObsDictRelabelingBuffer(ReplayBuffer):

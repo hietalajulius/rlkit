@@ -1,6 +1,6 @@
 import torch
-from utils import get_variant, argsparser
-from envs.cloth import ClothEnvPickled as ClothEnv
+from clothmanip.utils.utils import get_variant, argsparser
+from clothmanip.envs.cloth import ClothEnvPickled as ClothEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.pythonplusplus import identity
 import numpy as np

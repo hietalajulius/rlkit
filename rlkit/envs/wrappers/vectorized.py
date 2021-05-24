@@ -14,7 +14,6 @@ import mujoco_py
 
 
 def profiled_worker(remote, parent_remote, env_fn_wrapper, num, env_memory_usage=None):
-    print("Profiling subprocess")
     cProfile.runctx('_worker(remote, parent_remote, env_fn_wrapper, env_memory_usage)',
                     globals(), locals(), f'{env_fn_wrapper.var().save_folder}/profiling/prof{num}.prof-{time.strftime("%m-%d")}')
 
@@ -22,7 +21,6 @@ def profiled_worker(remote, parent_remote, env_fn_wrapper, num, env_memory_usage
 def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
     with mujoco_py.ignore_mujoco_warnings():
         process = psutil.Process(os.getpid())
-        print("Worker process PID", process)
         parent_remote.close()
         env = env_fn_wrapper.var()
         while True:
