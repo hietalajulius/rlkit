@@ -5,6 +5,8 @@ import copy
 def vec_env_rollout(
         env,
         agent,
+        output_max,
+        demo_coef=1.0,
         use_demos=False,
         demo_path=None,
         num_demoers=0,
@@ -36,7 +38,8 @@ def vec_env_rollout(
     done_indices = []
 
     if use_demos and num_demoers > 0:
-        predefined_actions = np.genfromtxt(demo_path, delimiter=',')[20:] #TODO: clip the demos themselves
+        predefined_actions = np.genfromtxt(demo_path, delimiter=',')*demo_coef
+        
 
     while path_length < max_path_length:
         o_for_agent = preprocess_obs_for_policy_fn(o)
@@ -44,8 +47,12 @@ def vec_env_rollout(
         agent_info = [{} for _ in range(processes)]
 
         if use_demos and num_demoers > 0:
-            delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
-            a[:num_demoers] = delta/0.05 #TODO NEEDS FIXING
+            if path_length < predefined_actions.shape[0]:
+                delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
+            else:
+                delta = np.zeros((num_demoers,3))
+            delta = np.clip(delta/output_max, -1, 1)
+            a[:num_demoers] = delta
 
         #print("VEC ENV STEP START")
         next_o, r, d, env_info = env.step(copy.deepcopy(a))

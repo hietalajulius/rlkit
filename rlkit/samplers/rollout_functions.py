@@ -73,6 +73,7 @@ def contextual_rollout(
 def rollout(
         env,
         agent,
+        demo_coef=1.0,
         use_demos=False,
         demo_path=None,
         max_path_length=np.inf,
@@ -80,7 +81,9 @@ def rollout(
         env_timestep=None,
         new_action_every_ctrl_step=None,
         evaluate=False,
+        epoch=0,
         render=False,
+        save_images_every_epoch=1,
         render_kwargs=None,
         preprocess_obs_for_policy_fn=None,
         get_action_kwargs=None,
@@ -110,16 +113,18 @@ def rollout(
 
 
     if use_demos:
-        predefined_actions = np.genfromtxt(demo_path, delimiter=',')[20:] #TODO: clip the demos themselves
+        predefined_actions = np.genfromtxt(demo_path, delimiter=',')*demo_coef
 
-    if evaluate:
-        items_in_image_dir = len(os.listdir(f'{save_folder}/images/'))
-        cnn_path = f"{save_folder}/images/{items_in_image_dir}/cnn"
-        corners_path = f"{save_folder}/images/{items_in_image_dir}/corners"
-        eval_path = f"{save_folder}/images/{items_in_image_dir}/eval"
-        os.makedirs(cnn_path)
-        os.makedirs(corners_path)
-        os.makedirs(eval_path)
+    if evaluate and epoch % save_images_every_epoch == 0:
+        try:
+            cnn_path = f"{save_folder}/images/{epoch}/cnn"
+            corners_path = f"{save_folder}/images/{epoch}/corners"
+            eval_path = f"{save_folder}/images/{epoch}/eval"
+            os.makedirs(cnn_path)
+            os.makedirs(corners_path)
+            os.makedirs(eval_path)
+        except:
+            print("folders existed already")
         trajectory_log = []
         trajectory_log.append(np.concatenate([env.desired_pos_step_W, env.desired_pos_ctrl_W, env.get_ee_position_I(), env.get_ee_position_W(), np.zeros(9)]))
 
@@ -134,23 +139,26 @@ def rollout(
             o_for_agent, **get_action_kwargs)
 
         if use_demos:
-            delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
-            a = delta/env.max_advance
+            if path_length < predefined_actions.shape[0]:
+                delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
+            else:
+                delta = np.zeros(3)
+            a = delta/env.output_max
             a = np.clip(a, -1, 1)
 
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        if evaluate:
+        if evaluate and epoch % save_images_every_epoch == 0:
             train_image, eval_image = env.capture_image(aux_output)
-            cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/corners/{str(path_length).zfill(3)}.png', train_image)
-            cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/eval/{str(path_length).zfill(3)}.png', eval_image)
+            cv2.imwrite(f'{save_folder}/images/{epoch}/corners/{str(path_length).zfill(3)}.png', train_image)
+            cv2.imwrite(f'{save_folder}/images/{epoch}/eval/{str(path_length).zfill(3)}.png', eval_image)
 
             if "image" in o.keys():
                 data = o['image'].copy().reshape((-1, 100, 100))
                 for i, image in enumerate(data):
                     reshaped_image = image.reshape(100,100, 1)
-                    cv2.imwrite(f'{save_folder}/images/{items_in_image_dir}/cnn/{str(path_length).zfill(3)}_{i}.png', reshaped_image*255)
+                    cv2.imwrite(f'{save_folder}/images/{epoch}/cnn/{str(path_length).zfill(3)}_{i}.png', reshaped_image*255)
 
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
@@ -177,9 +185,9 @@ def rollout(
         o = next_o
 
     if evaluate:
-        np.savetxt(f"{save_folder}/eval_trajs/{items_in_image_dir}.csv",
+        np.savetxt(f"{save_folder}/eval_trajs/{epoch}.csv",
                     trajectory_log, delimiter=",", fmt='%f')
-        np.savetxt(f"{save_folder}/eval_trajs/executable_deltas_{items_in_image_dir}.csv",
+        np.savetxt(f"{save_folder}/eval_trajs/executable_deltas_{epoch}.csv",
                     np.array(trajectory_log)[:,12:15], delimiter=",", fmt='%f')
 
     actions = np.array(actions)

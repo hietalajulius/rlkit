@@ -22,6 +22,7 @@ class MdpPathCollector(PathCollector):
             use_demos=False,
             demo_path=None,
             num_demoers=0,
+            demo_coef=1.0,
             rollout_fn=rollout,
             save_env_in_snapshot=False,  # WTFFF
     ):
@@ -38,6 +39,7 @@ class MdpPathCollector(PathCollector):
         self.use_demos=use_demos
         self.demo_path=demo_path
         self.num_demoers=num_demoers
+        self.demo_coef=demo_coef
 
         self._num_steps_total = 0
         self._num_paths_total = 0
@@ -68,6 +70,7 @@ class MdpPathCollector(PathCollector):
                 self._policy,
                 use_demos=self.use_demos,
                 demo_path=self.demo_path,
+                demo_coef=self.demo_coef,
                 max_path_length=max_path_length_this_loop,
                 render=self._render,
                 render_kwargs=self._render_kwargs,
@@ -174,6 +177,12 @@ class KeyPathCollector(MdpPathCollector):
 
 
 class EvalKeyPathCollector(KeyPathCollector):
+    def __init__(self, *args, save_images_every_epoch, **kwargs):
+        self.epoch = 0
+        self.save_images_every_epoch = save_images_every_epoch
+        super().__init__(*args, **kwargs)
+        
+
     def collect_new_paths(
             self,
             max_path_length,
@@ -193,6 +202,8 @@ class EvalKeyPathCollector(KeyPathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length,
+                epoch=self.epoch,
+                save_images_every_epoch=self.save_images_every_epoch,
                 evaluate=evaluate,
                 save_folder=self.save_folder,
                 env_timestep=self.env_timestep,
@@ -201,6 +212,7 @@ class EvalKeyPathCollector(KeyPathCollector):
             path_len = len(path['actions'])
             num_steps_collected += path_len
             paths.append(path)
+        self.epoch += 1
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
@@ -252,6 +264,7 @@ class VectorizedKeyPathCollector(MdpPathCollector):
     def __init__(
             self,
             *args,
+            output_max,
             observation_key='observation',
             desired_goal_key='desired_goal',
             additional_keys=[],
@@ -268,6 +281,7 @@ class VectorizedKeyPathCollector(MdpPathCollector):
 
         rollout_fn = partial(
             vec_env_rollout,
+            output_max=output_max,
             processes=processes,
             preprocess_obs_for_policy_fn=obs_processor,
         )
@@ -294,7 +308,8 @@ class VectorizedKeyPathCollector(MdpPathCollector):
                 max_path_length=max_path_length,
                 use_demos=self.use_demos,
                 demo_path=self.demo_path,
-                num_demoers=self.num_demoers
+                num_demoers=self.num_demoers,
+                demo_coef=self.demo_coef
             )
             collected_paths_len = 0
             for path in collected_paths:
