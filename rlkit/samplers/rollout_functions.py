@@ -115,16 +115,17 @@ def rollout(
     if use_demos:
         predefined_actions = np.genfromtxt(demo_path, delimiter=',')*demo_coef
 
-    if evaluate and epoch % save_images_every_epoch == 0:
-        try:
-            cnn_path = f"{save_folder}/images/{epoch}/cnn"
-            corners_path = f"{save_folder}/images/{epoch}/corners"
-            eval_path = f"{save_folder}/images/{epoch}/eval"
-            os.makedirs(cnn_path)
-            os.makedirs(corners_path)
-            os.makedirs(eval_path)
-        except:
-            print("folders existed already")
+    if evaluate:
+        if epoch % save_images_every_epoch == 0:
+            try:
+                cnn_path = f"{save_folder}/images/{epoch}/cnn"
+                corners_path = f"{save_folder}/images/{epoch}/corners"
+                eval_path = f"{save_folder}/images/{epoch}/eval"
+                os.makedirs(cnn_path)
+                os.makedirs(corners_path)
+                os.makedirs(eval_path)
+            except:
+                print("folders existed already")
         trajectory_log = []
         trajectory_log.append(np.concatenate([env.desired_pos_step_W, env.desired_pos_ctrl_W, env.get_ee_position_I(), env.get_ee_position_W(), np.zeros(9)]))
 
