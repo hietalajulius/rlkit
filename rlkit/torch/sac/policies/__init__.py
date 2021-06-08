@@ -16,6 +16,7 @@ from rlkit.torch.sac.policies.gaussian_policy import (
 )
 
 from rlkit.torch.sac.policies.script_policy import ScriptPolicy, TanhScriptPolicy
+from rlkit.torch.sac.policies.pretrained_script_policy import CustomScriptPolicy, CustomTanhScriptPolicy
 from rlkit.torch.sac.policies.lvm_policy import LVMPolicy
 from rlkit.torch.sac.policies.policy_from_q import PolicyFromQ
 
