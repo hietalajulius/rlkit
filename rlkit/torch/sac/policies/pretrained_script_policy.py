@@ -33,6 +33,7 @@ class CustomScriptPolicy(torch.nn.Module):
             hidden_sizes_aux=[],
             hidden_sizes_main=[],
             added_fc_input_size=0,
+            net_type="resnet",
             conv_normalization_type='none',
             fc_normalization_type='none',
             init_w=1e-4,
@@ -48,8 +49,11 @@ class CustomScriptPolicy(torch.nn.Module):
             pretrained=True,
             std=None):
         super(CustomScriptPolicy, self).__init__()
-        self.model = models.resnet18(pretrained=pretrained)
-        #self.model = models.densenet161(pretrained=pretrained)
+        if net_type == "resnet":
+            self.model = models.resnet18(pretrained=pretrained)
+        elif net_type == "densenet":
+            self.model = torch.hub.load('pytorch/vision:v0.9.0', 'densenet121', pretrained=True)
+            #self.model = models.densenet161(pretrained=pretrained)
         self.model.cuda()
 
         self.input_width = input_width
@@ -65,6 +69,7 @@ class CustomScriptPolicy(torch.nn.Module):
         self.corners_fc = torch.nn.Linear(self.last_hidden_size, 8)
 
     def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        print(x.shape, self.conv_input_length, self.added_fc_input_size)
         action_x = x.narrow(
                 start=self.conv_input_length,
                 length=self.added_fc_input_size,
