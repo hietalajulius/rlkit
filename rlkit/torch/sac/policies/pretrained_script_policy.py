@@ -48,8 +48,8 @@ class CustomScriptPolicy(torch.nn.Module):
             pretrained=True,
             std=None):
         super(CustomScriptPolicy, self).__init__()
-        #self.model = models.resnet18(pretrained=True)
-        self.model = models.densenet161(pretrained=pretrained)
+        self.model = models.resnet18(pretrained=pretrained)
+        #self.model = models.densenet161(pretrained=pretrained)
         self.model.cuda()
 
         self.input_width = input_width
