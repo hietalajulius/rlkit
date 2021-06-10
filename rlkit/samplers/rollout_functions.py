@@ -119,9 +119,13 @@ def rollout(
         if epoch % save_images_every_epoch == 0:
             try:
                 cnn_path = f"{save_folder}/images/{epoch}/cnn"
+                cnn_color_path = f"{save_folder}/images/{epoch}/cnn_color"
+                cnn_color_full_path = f"{save_folder}/images/{epoch}/cnn_color_full"
                 corners_path = f"{save_folder}/images/{epoch}/corners"
                 eval_path = f"{save_folder}/images/{epoch}/eval"
                 os.makedirs(cnn_path)
+                os.makedirs(cnn_color_path)
+                os.makedirs(cnn_color_full_path)
                 os.makedirs(corners_path)
                 os.makedirs(eval_path)
             except:
@@ -151,16 +155,12 @@ def rollout(
             full_o_postprocess_func(env, agent, o)
 
         if evaluate and epoch % save_images_every_epoch == 0:
-            train_image, eval_image = env.capture_image(aux_output)
-            cv2.imwrite(f'{save_folder}/images/{epoch}/corners/{str(path_length).zfill(3)}.png', train_image)
+            corner_image, eval_image, cnn_color_image_full, cnn_color_image, cnn_image = env.capture_images(aux_output)
+            cv2.imwrite(f'{save_folder}/images/{epoch}/corners/{str(path_length).zfill(3)}.png', corner_image)
             cv2.imwrite(f'{save_folder}/images/{epoch}/eval/{str(path_length).zfill(3)}.png', eval_image)
-
-            if "image" in o.keys():
-                data = o['image'].copy().reshape((-1, 100, 100))
-                for i, image in enumerate(data):
-                    reshaped_image = image.reshape(100,100, 1)
-                    cv2.imwrite(f'{save_folder}/images/{epoch}/cnn/{str(path_length).zfill(3)}_{i}.png', reshaped_image*255)
-
+            cv2.imwrite(f'{save_folder}/images/{epoch}/cnn/{str(path_length).zfill(3)}.png', cnn_image)
+            cv2.imwrite(f'{save_folder}/images/{epoch}/cnn_color/{str(path_length).zfill(3)}.png', cnn_color_image)
+            cv2.imwrite(f'{save_folder}/images/{epoch}/cnn_color_full/{str(path_length).zfill(3)}.png', cnn_color_image_full)
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
 
