@@ -136,7 +136,6 @@ class KeyPathCollector(MdpPathCollector):
             observation_key='observation',
             desired_goal_key='desired_goal',
             additional_keys=[],
-            save_folder=None,
             env_timestep=None,
             new_action_every_ctrl_step=None,
             goal_sampling_mode=None,
@@ -151,11 +150,9 @@ class KeyPathCollector(MdpPathCollector):
 
         rollout_fn = partial(
             rollout,
-            save_folder=save_folder,
             preprocess_obs_for_policy_fn=obs_processor,
         )
         super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
-        self.save_folder = save_folder
         self.env_timestep = env_timestep
         self.new_action_every_ctrl_step = new_action_every_ctrl_step
         self._observation_key = observation_key
