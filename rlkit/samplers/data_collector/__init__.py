@@ -9,8 +9,6 @@ from rlkit.samplers.data_collector.path_collector import (
     GoalConditionedPathCollector,
     KeyPathCollector,
     VectorizedKeyPathCollector,
-    EvalKeyPathCollector,
-    PresetEvalKeyPathCollector,
     VAEWrappedEnvPathCollector,
 )
 from rlkit.samplers.data_collector.step_collector import (

@@ -77,13 +77,6 @@ def rollout(
         use_demos=False,
         demo_path=None,
         max_path_length=np.inf,
-        save_folder=None,
-        env_timestep=None,
-        new_action_every_ctrl_step=None,
-        evaluate=False,
-        epoch=0,
-        render=False,
-        save_images_every_epoch=1,
         render_kwargs=None,
         preprocess_obs_for_policy_fn=None,
         get_action_kwargs=None,
@@ -115,25 +108,6 @@ def rollout(
     if use_demos:
         predefined_actions = np.genfromtxt(demo_path, delimiter=',')*demo_coef
 
-    if evaluate:
-        if epoch % save_images_every_epoch == 0:
-            try:
-                cnn_path = f"{save_folder}/images/{epoch}/cnn"
-                cnn_color_path = f"{save_folder}/images/{epoch}/cnn_color"
-                cnn_color_full_path = f"{save_folder}/images/{epoch}/cnn_color_full"
-                corners_path = f"{save_folder}/images/{epoch}/corners"
-                eval_path = f"{save_folder}/images/{epoch}/eval"
-                os.makedirs(cnn_path)
-                os.makedirs(cnn_color_path)
-                os.makedirs(cnn_color_full_path)
-                os.makedirs(corners_path)
-                os.makedirs(eval_path)
-            except:
-                print("folders existed already")
-        trajectory_log = []
-        trajectory_log.append(np.concatenate([env.desired_pos_step_W, env.desired_pos_ctrl_W, env.get_ee_position_I(), env.get_ee_position_W(), np.zeros(9)]))
-
-
     if reset_callback:
         reset_callback(env, agent, o)
 
@@ -154,23 +128,7 @@ def rollout(
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        if evaluate and epoch % save_images_every_epoch == 0:
-            corner_image, eval_image, cnn_color_image_full, cnn_color_image, cnn_image = env.capture_images(aux_output)
-            cv2.imwrite(f'{save_folder}/images/{epoch}/corners/{str(path_length).zfill(3)}.png', corner_image)
-            cv2.imwrite(f'{save_folder}/images/{epoch}/eval/{str(path_length).zfill(3)}.png', eval_image)
-            cv2.imwrite(f'{save_folder}/images/{epoch}/cnn/{str(path_length).zfill(3)}.png', cnn_image)
-            cv2.imwrite(f'{save_folder}/images/{epoch}/cnn_color/{str(path_length).zfill(3)}.png', cnn_color_image)
-            cv2.imwrite(f'{save_folder}/images/{epoch}/cnn_color_full/{str(path_length).zfill(3)}.png', cnn_color_image_full)
-
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
-
-        if evaluate:
-            delta = env.get_ee_position_W() - trajectory_log[-1][9:12]
-            
-            velocity = delta / (env_timestep*new_action_every_ctrl_step)
-            acceleration = (velocity - trajectory_log[-1][15:18]) / (env_timestep*new_action_every_ctrl_step)
-            
-            trajectory_log.append(np.concatenate([env.desired_pos_step_W, env.desired_pos_ctrl_W, env.get_ee_position_I(), env.get_ee_position_W(), delta, velocity, acceleration]))
 
         observations.append(o)
         rewards.append(r)
@@ -184,12 +142,6 @@ def rollout(
         if d:
             break
         o = next_o
-
-    if evaluate:
-        np.savetxt(f"{save_folder}/eval_trajs/{epoch}.csv",
-                    trajectory_log, delimiter=",", fmt='%f')
-        np.savetxt(f"{save_folder}/eval_trajs/executable_deltas_{epoch}.csv",
-                    np.array(trajectory_log)[:,12:15], delimiter=",", fmt='%f')
 
     actions = np.array(actions)
     if len(actions.shape) == 1:

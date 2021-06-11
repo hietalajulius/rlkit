@@ -32,23 +32,15 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             evaluation_env=None,
             exploration_data_collector: DataCollector = None,
             evaluation_data_collector: DataCollector = None,
-            preset_evaluation_data_collector: DataCollector = None,
-            demo_data_collector: DataCollector = None,
-            replay_buffer: ReplayBuffer = None,
-            demo_buffer: ReplayBuffer = None,
-            demo_paths=None
+            replay_buffer: ReplayBuffer = None
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
         self.eval_env = evaluation_env
         self.expl_data_collector = exploration_data_collector
         self.eval_data_collector = evaluation_data_collector
-        self.preset_eval_data_collector = preset_evaluation_data_collector
-        self.demo_data_collector = demo_data_collector
         self.replay_buffer = replay_buffer
-        self.demo_buffer = demo_buffer
         self._start_epoch = 0
-        self.demo_paths = demo_paths
 
         self.post_epoch_funcs = []
 
@@ -72,14 +64,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         # gt.stamp('saving')
         # self._log_stats(epoch)
 
-        self._log_tb_stats(epoch)
+        self._log_exploration_tb_stats(epoch)
 
         if not self.expl_data_collector is None:
             self.expl_data_collector.end_epoch(epoch)
         if not self.eval_data_collector is None:
             self.eval_data_collector.end_epoch(epoch)
-        if not self.preset_eval_data_collector is None:
-            self.preset_eval_data_collector.end_epoch(epoch)
         if not self.replay_buffer is None:
             self.replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
@@ -100,22 +90,25 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             for k, v in self.eval_data_collector.get_snapshot().items():
                 snapshot['evaluation/' + k] = v
 
-        if not self.preset_eval_data_collector is None:
-            for k, v in self.preset_eval_data_collector.get_snapshot().items():
-                snapshot['preset_evaluation/' + k] = v
         if not self.replay_buffer is None:
             for k, v in self.replay_buffer.get_snapshot().items():
                 snapshot['replay_buffer/' + k] = v
         return snapshot
 
-    def _log_tb_stats(self, epoch):
+    def log_test_suite_tb_stats(self, epoch, stats):
+        for key in stats.keys():
+            self.writer.add_scalar(f"suite/{key}", stats[key], epoch)
+
+
+    def _log_exploration_tb_stats(self, epoch):
 
         expl_paths = self.expl_data_collector.get_epoch_paths()
-        eval_paths = self.eval_data_collector.get_epoch_paths()
+        #eval_paths = self.eval_data_collector.get_epoch_paths()
 
+        '''
         self.writer.add_scalar('test_regular/eval', eval_util.get_generic_path_information(
             eval_paths)['env_infos/final/is_success Mean'], epoch)
-
+        '''
         '''
         ates = []
         for path in expl_paths:
@@ -150,27 +143,22 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                           'Returns Mean'], epoch)
         
 
-        if not self.preset_eval_data_collector is None:
-            preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
-            self.writer.add_scalar('test_preset/eval', eval_util.get_generic_path_information(
-                preset_eval_paths)['env_infos/final/is_success Mean'], epoch)
-
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():
             self.writer.add_scalar(
                 'losses/eval/state', self.trainer.get_diagnostics()['State estimation loss'], epoch)
 
         self.writer.add_scalar(
-                'losses/eval/q1', self.trainer.get_diagnostics()['QF1 Loss'], epoch)
+                'losses/q1', self.trainer.get_diagnostics()['QF1 Loss'], epoch)
         self.writer.add_scalar(
-                'losses/eval/q2', self.trainer.get_diagnostics()['QF2 Loss'], epoch)
+                'losses/q2', self.trainer.get_diagnostics()['QF2 Loss'], epoch)
         self.writer.add_scalar(
-                'losses/eval/policy', self.trainer.get_diagnostics()['Raw Policy Loss'], epoch)
+                'losses/policy', self.trainer.get_diagnostics()['Raw Policy Loss'], epoch)
         self.writer.add_scalar(
-                'losses/eval/logpi', self.trainer.get_diagnostics()['Log Pi'], epoch)
+                'losses/logpi', self.trainer.get_diagnostics()['Log Pi'], epoch)
         self.writer.add_scalar(
-                'losses/eval/alpha', self.trainer.get_diagnostics()['Alpha'], epoch)
+                'losses/alpha', self.trainer.get_diagnostics()['Alpha'], epoch)
         self.writer.add_scalar(
-                'losses/eval/alphaloss', self.trainer.get_diagnostics()['Alpha Loss'], epoch)
+                'losses/alphaloss', self.trainer.get_diagnostics()['Alpha Loss'], epoch)
 
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
@@ -224,32 +212,12 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 eval_util.get_generic_path_information(eval_paths),
                 prefix="evaluation/",
             )
-
-        if not self.preset_eval_data_collector is None:
-            logger.record_dict(
-                self.preset_eval_data_collector.get_diagnostics(),
-                prefix='preset_evaluation/',
-            )
-            preset_eval_paths = self.preset_eval_data_collector.get_epoch_paths()
-            logger.record_dict(
-                eval_util.get_generic_path_information(preset_eval_paths),
-                prefix="preset_evaluation/",
-            )
-
         if not self.eval_env is None:
             if hasattr(self.eval_env, 'get_diagnostics'):
                 logger.record_dict(
                     self.eval_env.get_diagnostics(eval_paths),
                     prefix='evaluation/',
                 )
-
-        if not self.demo_paths is None:
-            print("Logging demo path stats")
-            logger.record_dict(
-                eval_util.get_generic_path_information(self.demo_paths),
-                prefix="evaluation/demonstrations/",
-            )
-
         """
         Misc
         """

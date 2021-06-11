@@ -7,8 +7,7 @@ from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.data_collector.base import PathCollector
 from rlkit.samplers.rollout_functions import rollout
 from rlkit.samplers.async_rollout_functions import vec_env_rollout
-import glob
-import os
+
 
 
 class MdpPathCollector(PathCollector):
@@ -174,91 +173,6 @@ class KeyPathCollector(MdpPathCollector):
             desired_goal_key=self._desired_goal_key,
         )
         return snapshot
-
-
-class EvalKeyPathCollector(KeyPathCollector):
-    def __init__(self, *args, save_images_every_epoch, **kwargs):
-        self.epoch = 0
-        self.save_images_every_epoch = save_images_every_epoch
-        super().__init__(*args, **kwargs)
-        
-
-    def collect_new_paths(
-            self,
-            max_path_length,
-            num_rollouts,
-    ):
-        self._env.goal_sampling_mode = self._goal_sampling_mode
-        paths = []
-        num_steps_collected = 0
-        for i in range(num_rollouts):
-            print("Eval rollout", i+1)
-            if i == 0:
-                evaluate = True
-            else:
-                evaluate = False
-
-            path = self._rollout_fn(
-                self._env,
-                self._policy,
-                max_path_length=max_path_length,
-                epoch=self.epoch,
-                save_images_every_epoch=self.save_images_every_epoch,
-                evaluate=evaluate,
-                save_folder=self.save_folder,
-                env_timestep=self.env_timestep,
-                new_action_every_ctrl_step=self.new_action_every_ctrl_step
-            )
-            path_len = len(path['actions'])
-            num_steps_collected += path_len
-            paths.append(path)
-        self.epoch += 1
-        self._num_paths_total += len(paths)
-        self._num_steps_total += num_steps_collected
-        self._epoch_paths.extend(paths)
-        return paths
-
-
-class PresetEvalKeyPathCollector(KeyPathCollector):
-    def collect_new_paths(
-            self,
-            max_path_length,
-            num_param_buckets
-    ):
-        self._env.goal_sampling_mode = self._goal_sampling_mode
-        paths = []
-        num_steps_collected = 0
-
-        stiffnesses = np.linspace(
-            self._env.min_stiffness, self._env.max_stiffness, num_param_buckets)
-        dampings = np.linspace(
-            self._env.min_damping, self._env.max_damping, num_param_buckets)
-
-        for i in range(num_param_buckets):
-            for j in range(num_param_buckets):
-                print("Eval rollout", i*num_param_buckets +
-                      j, stiffnesses[i], dampings[j])
-
-                def reset_callback(env, agent, o):
-                    env.set_joint_tendon_params(
-                        stiffnesses[i], dampings[j], stiffnesses[i], dampings[j])
-
-                path = self._rollout_fn(
-                    self._env,
-                    self._policy,
-                    max_path_length=max_path_length,
-                    render=self._render,
-                    reset_callback=reset_callback,
-                    render_kwargs=self._render_kwargs,
-                )
-                path_len = len(path['actions'])
-                num_steps_collected += path_len
-                paths.append(path)
-        self._num_paths_total += len(paths)
-        self._num_steps_total += num_steps_collected
-        self._epoch_paths.extend(paths)
-        return paths
-
 
 class VectorizedKeyPathCollector(MdpPathCollector):
     def __init__(
