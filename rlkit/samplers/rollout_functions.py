@@ -77,6 +77,7 @@ def rollout(
         use_demos=False,
         demo_path=None,
         max_path_length=np.inf,
+        render=False,
         render_kwargs=None,
         preprocess_obs_for_policy_fn=None,
         get_action_kwargs=None,
