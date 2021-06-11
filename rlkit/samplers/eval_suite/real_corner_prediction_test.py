@@ -1,3 +1,4 @@
+from pandas.core import frame
 from rlkit.samplers.eval_suite.base import EvalTest
 import typing
 import numpy as np
@@ -7,6 +8,7 @@ from rlkit.samplers.eval_suite.utils import get_obs_preprocessor, create_real_co
 import copy
 from clothmanip.utils.utils import get_keys_and_dims
 import cv2
+from collections import deque
 
 
 class RealCornerPredictionTest(EvalTest):
@@ -18,6 +20,7 @@ class RealCornerPredictionTest(EvalTest):
         self.obs_preprocessor = get_obs_preprocessor(keys['path_collector_observation_key'], variant['path_collector_kwargs']['additional_keys'], keys['desired_goal_key'])
         self.file_dir = os.path.dirname(os.path.abspath(__file__))
         self.camera_type = variant['env_kwargs']['camera_type']
+        self.frame_stack_size = variant['env_kwargs']['frame_stack_size']
 
 
     def single_evaluation(self, eval_number: int) -> dict:
@@ -35,6 +38,13 @@ class RealCornerPredictionTest(EvalTest):
             labels = pd.read_csv(f"{image_dir_path}/labels.csv", names=["corner", "u", "v", "file", "w", "h"])
             off_directory = 0
             image_index = 0
+            frame_stack = deque([], maxlen = self.frame_stack_size)
+            first_image_file_path = os.path.join(images_dir, image_dir, "1.png")
+            first_image = cv2.imread(first_image_file_path)
+            first_image = cv2.cvtColor(first_image, cv2.COLOR_BGR2GRAY)
+            for _ in range(self.frame_stack_size):
+                frame_stack.append(first_image.flatten()/255)
+
             for image_file in os.listdir(image_dir_path):
                 if image_file.split(".")[1] == "png":
                     image_index += 1
@@ -42,7 +52,8 @@ class RealCornerPredictionTest(EvalTest):
                     image = cv2.imread(image_file_path)
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                     w, h = image.shape
-                    o['image'] = image.flatten()/255
+                    frame_stack.append(image.flatten()/255)
+                    o['image'] = np.array([image for image in frame_stack]).flatten()
                     o_for_agent = self.obs_preprocessor(o)
                     a, agent_info, aux_output = self.policy.get_action(o_for_agent)
 
