@@ -6,6 +6,7 @@ import os
 from rlkit.samplers.eval_suite.utils import get_obs_preprocessor, create_regular_image_directories, save_regular_images
 import copy
 from clothmanip.utils.utils import get_keys_and_dims
+import cv2
 
 
 class SuccessRateTest(EvalTest):
@@ -15,6 +16,7 @@ class SuccessRateTest(EvalTest):
         self.max_path_length = variant['algorithm_kwargs']['max_path_length']
         keys, _ = get_keys_and_dims(variant, self.env)
         self.obs_preprocessor = get_obs_preprocessor(keys['path_collector_observation_key'], variant['path_collector_kwargs']['additional_keys'], keys['desired_goal_key'])
+        self.save_blurred_images = variant['env_kwargs']['randomization_kwargs']['blur_randomization']
 
 
     def single_evaluation(self, eval_number: int) -> dict:
@@ -24,14 +26,27 @@ class SuccessRateTest(EvalTest):
 
         if save_images:
             create_regular_image_directories(self.base_save_folder, self.epoch)
+            blurred_path = f"{self.base_save_folder}/epochs/{self.epoch}/blurred_cnn"
+            try:
+                os.makedirs(blurred_path)
+            except:
+                print("folders existed already")
 
     
         path_length = 0
         o = self.env.reset()
         d = False
+        success = False
         while path_length < self.max_path_length:
             o_for_agent = self.obs_preprocessor(o)
             a, agent_info, aux_output = self.policy.get_action(o_for_agent)
+
+            image = o['image']
+            if self.save_blurred_images and save_images:
+                image = image.reshape((-1, 100, 100))*255
+                cv2.imwrite(f"{self.base_save_folder}/epochs/{self.epoch}/blurred_cnn/{str(path_length).zfill(3)}.png", image[0])
+
+
             if save_images:
                 save_regular_images(self.env, self.base_save_folder, self.epoch, path_length, aux_output)
             trajectory_log = trajectory_log.append(
@@ -39,6 +54,8 @@ class SuccessRateTest(EvalTest):
 
             next_o, r, d, env_info = self.env.step(copy.deepcopy(a))
             path_length += 1
+            if env_info['is_success']:
+                success = True
 
             if d:
                 break
@@ -47,7 +64,7 @@ class SuccessRateTest(EvalTest):
         trajectory_log.to_csv(f"{self.base_save_folder}/epochs/{self.epoch}/trajectory.csv")
         trajectory_log['raw_action'].to_csv(f"{self.base_save_folder}/epochs/{self.epoch}/executable_raw_actions.csv")
         corner_distances = np.linalg.norm(next_o['achieved_goal']-next_o['desired_goal'])
-        if d:
+        if success:
             return dict(success_rate=1.0, corner_distance=corner_distances)
         else:
             return dict(success_rate=0.0, corner_distance=corner_distances)

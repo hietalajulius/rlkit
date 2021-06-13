@@ -9,6 +9,8 @@ from rlkit.samplers.data_collector import DataCollector
 
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
+import psutil
+import os
 
 
 def _get_epoch_timings():
@@ -22,6 +24,11 @@ def _get_epoch_timings():
     times['time/epoch (s)'] = epoch_time
     times['time/total (s)'] = gt.get_times().total
     return times
+
+def bytes2GB(n):
+    G = 1 << (3 * 10)
+    value = float(n) / G
+    return value
 
 
 class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
@@ -45,6 +52,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.post_epoch_funcs = []
 
         self.writer = SummaryWriter(log_dir='tblogs/'+logger._prefixes[0])
+        self.process = psutil.Process(os.getpid())
 
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
@@ -103,44 +111,24 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
     def _log_exploration_tb_stats(self, epoch):
 
         expl_paths = self.expl_data_collector.get_epoch_paths()
-        #eval_paths = self.eval_data_collector.get_epoch_paths()
+        info_metrics = ["task_reward", "reward", 'is_success', "delta_size_penalty", "scaled_delta_size_penalty",
+                    "cosine_penalty", "scaled_cosine_penalty", "ate_penalty", "scaled_ate_penalty", "control_penalty"]
 
-        '''
-        self.writer.add_scalar('test_regular/eval', eval_util.get_generic_path_information(
-            eval_paths)['env_infos/final/is_success Mean'], epoch)
-        '''
-        '''
-        ates = []
-        for path in expl_paths:
-            ate = np.sqrt(eval_util.get_generic_path_information([path])[
-                          'env_infos/squared_error_norm Mean'])
-            ates.append(ate)
-        ates = np.array(ates)
-        '''
-
-        self.writer.add_scalar('expl/delta_size_penalty', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/delta_size_penalty Mean'], epoch)
+        for metric in info_metrics:
+            self.writer.add_scalar(f'expl/{metric}', eval_util.get_generic_path_information(expl_paths)[
+                          f'env_infos/{metric} Mean'], epoch)
         
-        self.writer.add_scalar('expl/delta_size', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/delta_size Mean'], epoch)
-
-        self.writer.add_scalar('expl/ate_penalty', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/ate_penalty Mean'], epoch)
-
-        self.writer.add_scalar('expl/cosine_distance', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/cosine_distance Mean'], epoch)
-
-        self.writer.add_scalar('expl/task_reward', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/task_reward Mean'], epoch)
-
-        self.writer.add_scalar('expl/control_penalty', eval_util.get_generic_path_information(expl_paths)[
-                          'env_infos/control_penalty Mean'], epoch)
-
         self.writer.add_scalar('expl/reward', eval_util.get_generic_path_information(expl_paths)[
                           'Rewards Mean'], epoch)
 
         self.writer.add_scalar('expl/returns', eval_util.get_generic_path_information(expl_paths)[
                           'Returns Mean'], epoch)
+
+        memory_usage = self.process.memory_info().rss
+        env_memory_usage = eval_util.get_generic_path_information(expl_paths)[f'env_infos/env_memory_usage Mean']
+
+        self.writer.add_scalar(f'memory_usages/main', bytes2GB(memory_usage), epoch)
+        self.writer.add_scalar(f'memory_usages/env', bytes2GB(env_memory_usage), epoch)
         
 
         if 'State estimation loss' in self.trainer.get_diagnostics().keys():

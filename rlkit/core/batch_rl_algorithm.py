@@ -79,7 +79,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def _train(self):
         self.training_mode(True)
         if not self.demo_data_collector is None:
-            print("Collecting demos:", self.num_demos*self.max_path_length)
+            print("Collecting demos:", self.num_demos)
             demo_paths = self.demo_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_demos*self.max_path_length,

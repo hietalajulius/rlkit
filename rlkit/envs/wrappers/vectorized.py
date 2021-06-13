@@ -582,7 +582,7 @@ def _flatten_obs(obs, space):
         assert isinstance(
             space.spaces, OrderedDict), "Dict space must have ordered subspaces"
         assert isinstance(
-            obs[0], dict), "non-dict observation for environment with Dict observation space"
+            obs[0], dict), "non-dict observation for environment with Dict observation space (ACTUAL ERROR LIKELY SOMEWHERE ABOVE)"
         return OrderedDict([(k, np.stack([o[k] for o in obs])) for k in space.spaces.keys()])
     elif isinstance(space, gym.spaces.Tuple):
         assert isinstance(

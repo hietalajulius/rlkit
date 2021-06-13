@@ -28,6 +28,7 @@ class BlankImagesTest(EvalTest):
         path_length = 0
         o = self.env.reset()
         d = False
+        success = False
         while path_length < self.max_path_length:
             o['image'] = np.zeros(o['image'].shape)
             o_for_agent = self.obs_preprocessor(o)
@@ -37,13 +38,15 @@ class BlankImagesTest(EvalTest):
 
             next_o, r, d, env_info = self.env.step(copy.deepcopy(a))
             path_length += 1
+            if env_info['is_success']:
+                success = True
 
             if d:
                 break
             o = next_o
 
         corner_distances = np.linalg.norm(next_o['achieved_goal']-next_o['desired_goal'])
-        if d:
+        if success:
             return dict(success_rate=1.0, corner_distance=corner_distances)
         else:
             return dict(success_rate=0.0, corner_distance=corner_distances)
