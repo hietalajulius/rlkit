@@ -98,8 +98,10 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                 for tren in range(self.num_trains_per_train_loop):
                     start_sam = time.time()
+                    print("Algo: get new batch")
                     train_data = self.batch_queue.get()
                     self.batch_processed_event.set()
+                    print("Algo: set event processed")
 
                     sam_time = time.time() - start_sam
                     sam_times_cycle += sam_time
@@ -110,12 +112,12 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                     train_train_time = time.time() - start_train_train
 
-                    if not self.new_policy_event.is_set():
-                        temp_policy_weights = copy.deepcopy(
-                            self.trainer._base_trainer.policy.state_dict())
-                        self.policy_weights_queue.put(temp_policy_weights)
-                        self.new_policy_event.set()
-                        #print("Updated policy")
+                    #if not self.new_policy_event.is_set():
+                    temp_policy_weights = copy.deepcopy(
+                        self.trainer._base_trainer.policy.state_dict())
+                    self.policy_weights_queue.put(temp_policy_weights)
+                    self.new_policy_event.set()
+                    print("Algo: updated policy")
                     if tren % 100 == 0:
                         print("--STATUS--")
                         print(tren, "/", self.num_trains_per_train_loop,
