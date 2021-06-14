@@ -37,7 +37,6 @@ class RealCornerPredictionTest(EvalTest):
             image_dir_path = os.path.join(images_dir, image_dir)
             labels = pd.read_csv(f"{image_dir_path}/labels.csv", names=["corner", "u", "v", "file", "w", "h"])
             off_directory = 0
-            image_index = 0
             frame_stack = deque([], maxlen = self.frame_stack_size)
             first_image_file_path = os.path.join(images_dir, image_dir, "1.png")
             first_image = cv2.imread(first_image_file_path)
@@ -46,8 +45,9 @@ class RealCornerPredictionTest(EvalTest):
                 frame_stack.append(first_image.flatten()/255)
 
             for image_file in os.listdir(image_dir_path):
-                if image_file.split(".")[1] == "png":
-                    image_index += 1
+                image_index, suffix = image_file.split(".")
+                if suffix == "png":
+                    image_index = int(image_index)
                     image_file_path = os.path.join(images_dir, image_dir, image_file)
                     image = cv2.imread(image_file_path)
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
