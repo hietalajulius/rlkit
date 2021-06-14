@@ -144,7 +144,6 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                       )
 
                 self.training_mode(False)
-                self.trainer._base_trainer.policy.vers += 1
 
             self._end_epoch(epoch)
             print("Seconds since start", time.time() - start_time)
