@@ -81,8 +81,8 @@ class RealCornerPredictionTest(EvalTest):
                             aux_v = int(aux_output.flatten()[aux_idx*2+1]*h)
                             cv2.circle(image, (aux_u, aux_v), 2, (0, 255, 0), -1)
                         cv2.imwrite(f'{self.base_save_folder}/epochs/{self.epoch}/real_corners_prediction/{str(image_index).zfill(3)}.png', image)
-            total_off += off_directory/image_index
-        total_off /= i
+            total_off += off_directory/(len(os.listdir(image_dir_path))-1)
+        total_off /= len(os.listdir(images_dir))
 
 
         
