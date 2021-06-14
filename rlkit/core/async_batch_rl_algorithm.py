@@ -115,7 +115,7 @@ class AsyncBatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                             self.trainer._base_trainer.policy.state_dict())
                         self.policy_weights_queue.put(temp_policy_weights)
                         self.new_policy_event.set()
-                        print("Algo: updated policy")
+                        print("Algo: updated policy", tren)
                     if tren % 200 == 0:
                         print("--STATUS--")
                         print(tren, "/", self.num_trains_per_train_loop,
