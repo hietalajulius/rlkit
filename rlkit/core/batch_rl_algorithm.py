@@ -12,6 +12,7 @@ import torch
 import pickle
 import copy
 import psutil
+import tracemalloc
 
 def dump_models(save_folder, epoch, trainer, script_policy=None):
     policy_state_dict = trainer.policy.state_dict()
@@ -77,6 +78,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.demo_data_collector = demo_data_collector
 
     def _train(self):
+        current_memory_snapshot = tracemalloc.take_snapshot()
+        first_memory_snapshot = copy.deepcopy(current_memory_snapshot)
         self.training_mode(True)
         if not self.demo_data_collector is None:
             print("Collecting demos:", self.num_demos)
@@ -105,6 +108,20 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
             for cycle in range(self.num_train_loops_per_epoch):
                 print("Cycle", cycle, epoch)
+                
+                new_memory_snapshot = tracemalloc.take_snapshot()
+                top_stats_current = new_memory_snapshot.compare_to(current_memory_snapshot, 'lineno')
+                top_stats_first = new_memory_snapshot.compare_to(first_memory_snapshot, 'lineno')
+                print("[ Top 10 differences to current ]")
+                for stat in top_stats_current[:10]:
+                    print(stat)
+                print("\n")
+                print("[ Top 10 differences to fisrt ]")
+                for stat in top_stats_first[:10]:
+                    print(stat)
+                print("\n")
+
+                current_memory_snapshot = new_memory_snapshot
                 start_cycle = time.time()
                 
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
