@@ -112,6 +112,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 new_memory_snapshot = tracemalloc.take_snapshot()
                 top_stats_current = new_memory_snapshot.compare_to(current_memory_snapshot, 'lineno')
                 top_stats_first = new_memory_snapshot.compare_to(first_memory_snapshot, 'lineno')
+
+                '''
                 print("[ Top 10 differences to current ]")
                 for stat in top_stats_current[:10]:
                     print(stat)
@@ -120,6 +122,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 for stat in top_stats_first[:10]:
                     print(stat)
                 print("\n")
+                '''
 
                 current_memory_snapshot = new_memory_snapshot
                 start_cycle = time.time()
