@@ -114,8 +114,8 @@ class ScriptPolicy(torch.nn.Module):
         # find output dim of conv_layers by trial and add norm conv layers
         for i, conv_layer in enumerate(self.conv_layers):
             test_mat = conv_layer(test_mat)
-            if self.conv_normalization_type == 'batch':
-                self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+            #if self.conv_normalization_type == 'batch':
+            self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
             if self.conv_normalization_type == 'layer':
                 self.conv_norm_layers.append(nn.LayerNorm(test_mat.shape[1:]))
             if self.pool_type != 'none':
