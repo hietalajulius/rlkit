@@ -102,10 +102,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.expl_data_collector.end_epoch(-1)
 
         for epoch in range(self._start_epoch, self.num_epochs):
-            create_base_epoch_directory(self.save_folder, epoch)
-            self.training_mode(True)    
+            create_base_epoch_directory(self.save_folder, epoch)   
             print("Epoch", epoch)
 
+            self.training_mode(True) 
             for cycle in range(self.num_train_loops_per_epoch):
                 print("Cycle", cycle, epoch)
                 
@@ -138,6 +138,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.replay_buffer.add_paths(new_expl_paths)
                 print("Took to collect:", collection_time, "buffer size:", self.replay_buffer._size)
                 train_start = time.time()
+
+                
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)

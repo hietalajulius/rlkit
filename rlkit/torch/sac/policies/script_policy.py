@@ -230,14 +230,13 @@ class ScriptPolicy(torch.nn.Module):
         return self.output_activation(self.last_fc_main(h_main)), h_aux
 
     def apply_forward_conv(self, h):
-        for i, layer in enumerate(self.conv_layers):
+        for layer, norm_layer in zip(self.conv_layers, self.conv_norm_layers):
             h = layer(h)
             if self.conv_normalization_type != 'none':
-                pass
-                #h = self.conv_norm_layers[i](h)
+                h = norm_layer(h)
             if self.pool_type != 'none':
-                pass
-                #3h = self.pool_layers[i](h)
+                print("Poole")
+                #h = pool_layer(h)
             h = self.hidden_activation(h)
         return h
 
