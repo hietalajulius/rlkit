@@ -37,6 +37,8 @@ class ScriptPolicy(torch.nn.Module):
             pool_sizes=None,
             pool_strides=None,
             pool_paddings=None,
+            input_dropout_prob=0.0,
+            dropout_probs=[0.0, 0.0, 0.0, 0,0],
             aux_output_size=1,
             std=None):
         super(ScriptPolicy, self).__init__()
@@ -77,11 +79,14 @@ class ScriptPolicy(torch.nn.Module):
         self.fc_aux_layers = nn.ModuleList()
         self.fc_main_layers = nn.ModuleList()
 
+        self.conv_dropout_layers = nn.ModuleList()
+        self.input_dropout = nn.Dropout(p=input_dropout_prob)
+
         self.fc_aux_norm_layers = nn.ModuleList()
         self.fc_main_norm_layers = nn.ModuleList()
 
-        for i, (out_channels, kernel_size, stride, padding) in enumerate(
-                zip(n_channels, kernel_sizes, strides, paddings)
+        for i, (out_channels, kernel_size, stride, padding, dropout_prob) in enumerate(
+                zip(n_channels, kernel_sizes, strides, paddings, dropout_probs)
         ):
             conv = nn.Conv2d(input_channels,
                              out_channels,
@@ -94,6 +99,8 @@ class ScriptPolicy(torch.nn.Module):
             conv_layer = conv
             self.conv_layers.append(conv_layer)
             input_channels = out_channels
+
+            self.conv_dropout_layers.append(nn.Dropout2d(p=dropout_prob))
 
             if pool_type == 'max2d':
                 self.pool_layers.append(
@@ -153,6 +160,7 @@ class ScriptPolicy(torch.nn.Module):
             assert -20 <= self.log_std <= 2
 
     def forward(self, obs):
+        obs = self.input_dropout(obs)
         out = self.cnn_forward(obs, return_last_main_activations=True)
         h = out[0]
         h_aux = out[1]
@@ -230,7 +238,7 @@ class ScriptPolicy(torch.nn.Module):
         return self.output_activation(self.last_fc_main(h_main)), h_aux
 
     def apply_forward_conv(self, h):
-        for layer, norm_layer in zip(self.conv_layers, self.conv_norm_layers):
+        for layer, norm_layer, dropout_layer in zip(self.conv_layers, self.conv_norm_layers, self.conv_dropout_layers):
             h = layer(h)
             if self.conv_normalization_type != 'none':
                 h = norm_layer(h)
@@ -238,6 +246,7 @@ class ScriptPolicy(torch.nn.Module):
                 print("Poole")
                 #h = pool_layer(h)
             h = self.hidden_activation(h)
+            h = dropout_layer(h)
         return h
 
 class TanhScriptPolicy(ScriptPolicy, TorchStochasticPolicy):
