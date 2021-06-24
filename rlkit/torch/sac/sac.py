@@ -240,8 +240,8 @@ class SACTrainer(TorchTrainer, LossFunction):
             policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
             eval_statistics.update(policy_statistics)
             if self.use_automatic_entropy_tuning:
-                eval_statistics['Alpha'] = alpha.item()
-                eval_statistics['Alpha Loss'] = alpha_loss.item()
+                eval_statistics['Alpha'] = alpha.detach().item()
+                eval_statistics['Alpha Loss'] = alpha_loss.detach().item()
 
 
         loss = SACLosses(

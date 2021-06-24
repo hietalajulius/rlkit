@@ -18,10 +18,8 @@ class MdpPathCollector(PathCollector):
             max_num_epoch_paths_saved=None,
             render=False,
             render_kwargs=None,
-            use_demos=False,
-            demo_path=None,
-            num_demoers=0,
-            demo_coef=1.0,
+            num_pre_demos=0,
+            demo_paths=[],
             rollout_fn=rollout,
             save_env_in_snapshot=False,  # WTFFF
     ):
@@ -35,10 +33,8 @@ class MdpPathCollector(PathCollector):
         self._render = render
         self._render_kwargs = render_kwargs
         self._rollout_fn = rollout_fn
-        self.use_demos=use_demos
-        self.demo_path=demo_path
-        self.num_demoers=num_demoers
-        self.demo_coef=demo_coef
+        self.num_pre_demos = num_pre_demos
+        self.demo_paths = demo_paths
 
         self._num_steps_total = 0
         self._num_paths_total = 0
@@ -67,9 +63,8 @@ class MdpPathCollector(PathCollector):
             path = self._rollout_fn(
                 self._env,
                 self._policy,
-                use_demos=self.use_demos,
-                demo_path=self.demo_path,
-                demo_coef=self.demo_coef,
+                use_demos=self.num_pre_demos > 0,
+                demo_paths=self.demo_paths,
                 max_path_length=max_path_length_this_loop,
                 render=self._render,
                 render_kwargs=self._render_kwargs,
@@ -82,7 +77,7 @@ class MdpPathCollector(PathCollector):
             ):
                 break
             
-            if self.use_demos:
+            if self.num_pre_demos > 0:
                 demo_tries += 1
                 successes = np.array([info['is_success']
                                       for info in path['env_infos']])
@@ -136,6 +131,7 @@ class KeyPathCollector(MdpPathCollector):
             observation_key='observation',
             desired_goal_key='desired_goal',
             additional_keys=[],
+            demo_paths=[],
             env_timestep=None,
             new_action_every_ctrl_step=None,
             goal_sampling_mode=None,
@@ -158,6 +154,7 @@ class KeyPathCollector(MdpPathCollector):
         self._observation_key = observation_key
         self._desired_goal_key = desired_goal_key
         self._goal_sampling_mode = goal_sampling_mode
+        self.demo_paths = demo_paths
 
     def collect_new_paths(self, *args, **kwargs):
         self._env.goal_sampling_mode = self._goal_sampling_mode
@@ -175,12 +172,13 @@ class VectorizedKeyPathCollector(MdpPathCollector):
     def __init__(
             self,
             *args,
-            output_max,
             observation_key='observation',
             desired_goal_key='desired_goal',
             additional_keys=[],
             goal_sampling_mode=None,
             processes=1,
+            num_demoers=0,
+            demo_divider=1,
             **kwargs
     ):
         def obs_processor(o):
@@ -192,7 +190,6 @@ class VectorizedKeyPathCollector(MdpPathCollector):
 
         rollout_fn = partial(
             vec_env_rollout,
-            output_max=output_max,
             processes=processes,
             preprocess_obs_for_policy_fn=obs_processor,
         )
@@ -201,6 +198,8 @@ class VectorizedKeyPathCollector(MdpPathCollector):
         self._desired_goal_key = desired_goal_key
         self._additional_keys = additional_keys
         self._goal_sampling_mode = goal_sampling_mode
+        self.num_demoers = num_demoers
+        self.demo_divider=demo_divider
 
     def collect_new_paths(
             self,
@@ -217,10 +216,9 @@ class VectorizedKeyPathCollector(MdpPathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length,
-                use_demos=self.use_demos,
-                demo_path=self.demo_path,
                 num_demoers=self.num_demoers,
-                demo_coef=self.demo_coef
+                demo_paths=self.demo_paths,
+                demo_divider=self.demo_divider
             )
             collected_paths_len = 0
             for path in collected_paths:

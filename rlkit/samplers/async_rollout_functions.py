@@ -5,11 +5,9 @@ import copy
 def vec_env_rollout(
         env,
         agent,
-        output_max,
-        demo_coef=1.0,
-        use_demos=False,
-        demo_path=None,
         num_demoers=0,
+        demo_paths=[],
+        demo_divider=1,
         processes=1,
         max_path_length=np.inf,
         preprocess_obs_for_policy_fn=None,
@@ -36,9 +34,10 @@ def vec_env_rollout(
     o = env.reset()
 
     done_indices = []
-
-    if use_demos and num_demoers > 0:
-        predefined_actions = np.genfromtxt(demo_path, delimiter=',')*demo_coef
+    use_demos = num_demoers > 0
+    if use_demos:
+        demo_path = np.random.choice(demo_paths)
+        predefined_actions = np.genfromtxt(demo_path, delimiter=',')
         
 
     while path_length < max_path_length:
@@ -46,17 +45,15 @@ def vec_env_rollout(
         a, _ = agent.get_actions(o_for_agent, **get_action_kwargs)
         agent_info = [{} for _ in range(processes)]
 
-        if use_demos and num_demoers > 0:
+        if use_demos:
             if path_length < predefined_actions.shape[0]:
                 delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
             else:
-                delta = np.zeros((num_demoers,3))
-            delta = np.clip(delta/output_max, -1, 1)
+                delta = np.zeros(3)
+            delta = np.clip(delta/demo_divider, -1, 1)
             a[:num_demoers] = delta
 
-        #print("VEC ENV STEP START")
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
-        #print("VEC ENV STEP DONE")
 
         for idx, path_dict in enumerate(paths):
             if not idx in done_indices:

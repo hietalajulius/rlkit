@@ -28,7 +28,7 @@ def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
                 cmd, data = remote.recv()
                 #print("CMD", cmd, os.getpid())
                 if cmd == 'step':
-                    #print("step start", os.getpid())
+                    #print("step start", os.getpid(), data)
                     observation, reward, done, info = env.step(data)
                     #print("step end", os.getpid())
                     if done:
@@ -519,6 +519,12 @@ class SubprocVecEnv(VecEnv):
         for process in self.processes:
             process.join()
         self.closed = True
+
+    def get_image_obs(self):
+        for pipe in self.remotes:
+            pipe.send(('get_image_obs'))
+        imgs = [pipe.recv() for pipe in self.remotes]
+        return imgs
 
     def get_images(self) -> Sequence[np.ndarray]:
         for pipe in self.remotes:

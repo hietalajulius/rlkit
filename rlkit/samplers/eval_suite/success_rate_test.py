@@ -16,24 +16,28 @@ class SuccessRateTest(EvalTest):
         self.max_path_length = variant['algorithm_kwargs']['max_path_length']
         keys, _ = get_keys_and_dims(variant, self.env)
         self.obs_preprocessor = get_obs_preprocessor(keys['path_collector_observation_key'], variant['path_collector_kwargs']['additional_keys'], keys['desired_goal_key'])
-        self.save_blurred_images = variant['env_kwargs']['randomization_kwargs']['blur_randomization']
+        self.save_blurred_images = variant['env_kwargs']['randomization_kwargs']['albumentations_randomization']
 
 
     def single_evaluation(self, eval_number: int) -> dict:
-        print("Regular eval", eval_number)
+        print(f"{self.name} eval", eval_number)
         trajectory_log = pd.DataFrame()
         save_images = (self.epoch % self.save_images_every_epoch == 0) and (eval_number == 0)
 
         if save_images:
-            create_regular_image_directories(self.base_save_folder, self.epoch)
-            blurred_path = f"{self.base_save_folder}/epochs/{self.epoch}/blurred_cnn"
+            create_regular_image_directories(self.base_save_folder, self.name, self.epoch)
+            blurred_path = f"{self.base_save_folder}/epochs/{self.epoch}/{self.name}/blurred_cnn"
             try:
                 os.makedirs(blurred_path)
             except:
-                print("folders existed already")
+                print("blurred folders existed already")
 
     
         path_length = 0
+
+        self.env.randomization_kwargs['cloth_type'] = self.name
+        self.env.randomize_xml_model()
+        
         o = self.env.reset()
         d = False
         success = False
@@ -44,11 +48,11 @@ class SuccessRateTest(EvalTest):
             image = o['image']
             if self.save_blurred_images and save_images:
                 image = image.reshape((-1, 100, 100))*255
-                cv2.imwrite(f"{self.base_save_folder}/epochs/{self.epoch}/blurred_cnn/{str(path_length).zfill(3)}.png", image[0])
+                cv2.imwrite(f"{self.base_save_folder}/epochs/{self.epoch}/{self.name}/blurred_cnn/{str(path_length).zfill(3)}.png", image[0])
 
 
             if save_images:
-                save_regular_images(self.env, self.base_save_folder, self.epoch, path_length, aux_output)
+                save_regular_images(self.env, self.base_save_folder, self.name, self.epoch, path_length, aux_output)
             trajectory_log = trajectory_log.append(
                     self.env.get_trajectory_log_entry(), ignore_index=True)
 

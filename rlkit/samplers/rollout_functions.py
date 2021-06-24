@@ -73,9 +73,8 @@ def contextual_rollout(
 def rollout(
         env,
         agent,
-        demo_coef=1.0,
         use_demos=False,
-        demo_path=None,
+        demo_paths=[],
         max_path_length=np.inf,
         render=False,
         render_kwargs=None,
@@ -102,12 +101,13 @@ def rollout(
     next_observations = []
     path_length = 0
     agent.reset()
-
+    
     o = env.reset()
 
-
     if use_demos:
-        predefined_actions = np.genfromtxt(demo_path, delimiter=',')*demo_coef
+        demo_path = np.random.choice(demo_paths)
+        predefined_actions = np.genfromtxt(demo_path, delimiter=',')
+
 
     if reset_callback:
         reset_callback(env, agent, o)
@@ -121,15 +121,20 @@ def rollout(
         if use_demos:
             if path_length < predefined_actions.shape[0]:
                 delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
+                delta = predefined_actions[path_length][:3]
             else:
                 delta = np.zeros(3)
             a = delta/env.output_max
+            print("ACTION", a)
             a = np.clip(a, -1, 1)
 
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
+
+        cv2.imshow("demo", next_o['image'].reshape((100,100)))
+        cv2.waitKey(1)
 
         observations.append(o)
         rewards.append(r)
