@@ -50,6 +50,7 @@ def vec_env_rollout(
                 delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
             else:
                 delta = np.zeros(3)
+
             delta = np.clip(delta/demo_divider, -1, 1)
             a[:num_demoers] = delta
 
