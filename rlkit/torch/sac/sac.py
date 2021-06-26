@@ -186,8 +186,8 @@ class SACTrainer(TorchTrainer, LossFunction):
 
 
         if not aux_output is None:
-            corner_loss = self.corner_criterion(corner_positions,aux_output)*self.corner_loss_coef
-            policy_loss = policy_loss + corner_loss
+            corner_loss = self.corner_criterion(corner_positions,aux_output)
+            policy_loss = policy_loss + corner_loss*self.corner_loss_coef
 
         """
         QF Loss
@@ -214,7 +214,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         if not skip_statistics:
             if not aux_output is None:
                 eval_statistics['State estimation loss'] = np.mean(ptu.get_numpy(
-                    off_loss
+                    corner_loss
                 ))
             eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
