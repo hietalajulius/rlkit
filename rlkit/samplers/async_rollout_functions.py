@@ -55,7 +55,6 @@ def vec_env_rollout(
             a[:num_demoers] = delta
 
         next_o, r, d, env_info = env.step(copy.deepcopy(a))
-
         for idx, path_dict in enumerate(paths):
             if not idx in done_indices:
                 if d[idx]:

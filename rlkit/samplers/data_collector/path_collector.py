@@ -177,7 +177,6 @@ class VectorizedKeyPathCollector(MdpPathCollector):
             additional_keys=[],
             goal_sampling_mode=None,
             processes=1,
-            num_demoers=0,
             demo_divider=1,
             **kwargs
     ):
@@ -198,7 +197,6 @@ class VectorizedKeyPathCollector(MdpPathCollector):
         self._desired_goal_key = desired_goal_key
         self._additional_keys = additional_keys
         self._goal_sampling_mode = goal_sampling_mode
-        self.num_demoers = num_demoers
         self.demo_divider=demo_divider
 
     def collect_new_paths(
@@ -206,6 +204,7 @@ class VectorizedKeyPathCollector(MdpPathCollector):
             max_path_length,
             num_steps,
             discard_incomplete_paths=False,
+            num_demoers=0
     ):
         self._env.goal_sampling_mode = self._goal_sampling_mode
         paths = []
@@ -216,7 +215,7 @@ class VectorizedKeyPathCollector(MdpPathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length,
-                num_demoers=self.num_demoers,
+                num_demoers=num_demoers,
                 demo_paths=self.demo_paths,
                 demo_divider=self.demo_divider
             )
