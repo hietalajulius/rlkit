@@ -35,7 +35,7 @@ class SACTrainer(TorchTrainer, LossFunction):
             qf_lr=1e-3,
             optimizer_class=optim.Adam,
 
-            corner_loss_coef=0.001,
+            corner_prediction_loss_coef=0.001,
 
             soft_target_tau=1e-2,
             target_update_period=1,
@@ -73,7 +73,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
         self.corner_criterion = nn.MSELoss()
-        self.corner_loss_coef = corner_loss_coef
+        self.corner_loss_coef = corner_prediction_loss_coef
 
         self.cosine_similarity = nn.CosineSimilarity(dim=1)
 
