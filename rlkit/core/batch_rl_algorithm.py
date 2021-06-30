@@ -13,6 +13,30 @@ import pickle
 import copy
 import psutil
 import tracemalloc
+import linecache
+
+def display_top(snapshot, key_type='lineno', limit=10):
+    snapshot = snapshot.filter_traces((
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        tracemalloc.Filter(False, "<unknown>"),
+    ))
+    top_stats = snapshot.statistics(key_type)
+
+    print("Top %s lines" % limit)
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        print("#%s: %s:%s: %.1f KiB"
+              % (index, frame.filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            print('    %s' % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        print("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    print("Total allocated size: %.1f KiB" % (total / 1024))
 
 def dump_models(save_folder, epoch, trainer, script_policy=None):
     policy_state_dict = trainer.policy.state_dict()
@@ -42,8 +66,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_epochs,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
-            demo_data_collector: PathCollector = None,
-            num_demos= 0,
+            num_demoers=0,
+            num_pre_demoers=0,
+            num_pre_demos=0,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             save_policy_every_epoch=1,
@@ -62,7 +87,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.task_reward_function = copy.deepcopy(
             replay_buffer.task_reward_function)
 
-        self.num_demos = num_demos
+        self.num_pre_demos = num_pre_demos
+        self.num_demoers = num_demoers
+        self.num_pre_demoers = num_pre_demoers
 
         self.batch_size = batch_size
         self.max_path_length = max_path_length
@@ -75,19 +102,19 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.save_folder = save_folder
         self.script_policy = script_policy
         self.eval_suite = eval_suite
-        self.demo_data_collector = demo_data_collector
 
     def _train(self):
         current_memory_snapshot = tracemalloc.take_snapshot()
         first_memory_snapshot = copy.deepcopy(current_memory_snapshot)
         self.training_mode(True)
-        if not self.demo_data_collector is None:
-            print("Collecting demos:", self.num_demos)
-            demo_paths = self.demo_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_demos*self.max_path_length,
-                discard_incomplete_paths=False,
-            )
+        if self.num_pre_demos > 0:
+            print(f"Collecting {self.num_pre_demoers*self.num_pre_demos*self.max_path_length} demo steps")
+            demo_paths = self.expl_data_collector.collect_new_paths(
+                    self.max_path_length,
+                    self.num_pre_demoers*self.num_pre_demos*self.max_path_length,
+                    discard_incomplete_paths=False,
+                    num_demoers=self.num_pre_demoers
+                )
             self.replay_buffer.add_paths(demo_paths)
 
         start_time = time.time()
@@ -110,19 +137,20 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 print("Cycle", cycle, epoch)
                 
                 new_memory_snapshot = tracemalloc.take_snapshot()
-                top_stats_current = new_memory_snapshot.compare_to(current_memory_snapshot, 'lineno')
-                top_stats_first = new_memory_snapshot.compare_to(first_memory_snapshot, 'lineno')
-
-                '''
+                display_top(new_memory_snapshot)
+                top_stats_current = new_memory_snapshot.compare_to(current_memory_snapshot, 'traceback')
+                top_stats_first = new_memory_snapshot.compare_to(first_memory_snapshot, 'traceback')
+                
                 print("[ Top 10 differences to current ]")
                 for stat in top_stats_current[:10]:
                     print(stat)
                 print("\n")
-                print("[ Top 10 differences to fisrt ]")
+
+                print("[ Top 10 differences to first ]")
                 for stat in top_stats_first[:10]:
                     print(stat)
                 print("\n")
-                '''
+  
 
                 current_memory_snapshot = new_memory_snapshot
                 start_cycle = time.time()
@@ -131,6 +159,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     self.max_path_length,
                     self.num_expl_steps_per_train_loop,
                     discard_incomplete_paths=False,
+                    num_demoers=self.num_demoers
                 )
                 collection_done = time.time()
                 collection_time = collection_done - start_cycle

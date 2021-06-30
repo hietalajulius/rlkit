@@ -45,14 +45,11 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
     def __init__(self):
         self._num_train_steps = 0
 
-    def train(self, np_batch, np_demo_batch=None):
+    def train(self, np_batch):
         self._num_train_steps += 1
+        #TODO: potentially augment images further here for "free" train data
         batch = np_to_pytorch_batch(np_batch)
-        if not np_demo_batch == None:
-            demo_batch = np_to_pytorch_batch(np_demo_batch)
-            self.train_from_torch(batch, demo_batch)
-        else:
-            self.train_from_torch(batch)
+        self.train_from_torch(batch)
 
     def get_diagnostics(self):
         return OrderedDict([
@@ -60,7 +57,7 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
         ])
 
     @abc.abstractmethod
-    def train_from_torch(self, batch, demo_batch=None):
+    def train_from_torch(self, batch):
         pass
 
     @property
