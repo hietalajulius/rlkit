@@ -15,6 +15,11 @@ import psutil
 import tracemalloc
 import linecache
 
+def bytes2GB(n):
+    G = 1 << (3 * 10)
+    value = float(n) / G
+    return value
+
 def display_top(snapshot, key_type='lineno', limit=10):
     snapshot = snapshot.filter_traces((
         tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
@@ -104,8 +109,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.eval_suite = eval_suite
 
     def _train(self):
-        current_memory_snapshot = tracemalloc.take_snapshot()
-        first_memory_snapshot = copy.deepcopy(current_memory_snapshot)
+        #tracemalloc.start()
+        #current_memory_snapshot = tracemalloc.take_snapshot()
+        #first_memory_snapshot = copy.deepcopy(current_memory_snapshot)
         self.training_mode(True)
         if self.num_pre_demos > 0:
             print(f"Collecting {self.num_pre_demoers*self.num_pre_demos*self.max_path_length} demo steps")
@@ -127,32 +133,41 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             )
             self.replay_buffer.add_paths(init_expl_paths)
             self.expl_data_collector.end_epoch(-1)
-
+        
+        
         for epoch in range(self._start_epoch, self.num_epochs):
-            create_base_epoch_directory(self.save_folder, epoch)   
             print("Epoch", epoch)
+            create_base_epoch_directory(self.save_folder, epoch)   
+            
 
             self.training_mode(True) 
             for cycle in range(self.num_train_loops_per_epoch):
                 print("Cycle", cycle, epoch)
+                #print("\n")
+                #print("MEM USAGE", bytes2GB(self.process.memory_info().rss), "GB")
+                #print("\n")
+                #
                 
-                new_memory_snapshot = tracemalloc.take_snapshot()
-                display_top(new_memory_snapshot)
-                top_stats_current = new_memory_snapshot.compare_to(current_memory_snapshot, 'traceback')
-                top_stats_first = new_memory_snapshot.compare_to(first_memory_snapshot, 'traceback')
+                '''
+                if epoch % 10 == 0:
+                    new_memory_snapshot = tracemalloc.take_snapshot()
+                    display_top(new_memory_snapshot, limit=30)
+                    top_stats_current = new_memory_snapshot.compare_to(current_memory_snapshot, 'traceback')
+                    top_stats_first = new_memory_snapshot.compare_to(first_memory_snapshot, 'traceback')
+
+                    
+                    print("[ Top 30 differences to current ]")
+                    for stat in top_stats_current[:30]:
+                        print(stat)
+           
+                    print("[ Top 10 differences to first ]")
+                    for stat in top_stats_first[:10]:
+                        print(stat)
                 
-                print("[ Top 10 differences to current ]")
-                for stat in top_stats_current[:10]:
-                    print(stat)
-                print("\n")
+                
 
-                print("[ Top 10 differences to first ]")
-                for stat in top_stats_first[:10]:
-                    print(stat)
-                print("\n")
-  
-
-                current_memory_snapshot = new_memory_snapshot
+                    current_memory_snapshot = new_memory_snapshot
+                '''
                 start_cycle = time.time()
                 
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
