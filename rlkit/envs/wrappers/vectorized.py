@@ -29,7 +29,7 @@ def _worker(remote, parent_remote, env_fn_wrapper, env_memory_usage=None):
                 #print("CMD", cmd, os.getpid())
                 if cmd == 'step':
                     #print("step start", os.getpid(), data)
-                    observation, reward, done, info = env.step(data)
+                    observation, reward, done, info = env.step(data[0], data[1])
                     #print("step end", os.getpid())
                     if done:
                         #print("done", os.getpid())
@@ -153,7 +153,7 @@ class VecEnv(ABC):
         pass
 
     @abstractmethod
-    def step_async(self, actions):
+    def step_async(self, actions, aux):
         """
         Tell all the environments to start taking a step
         with the given actions.
@@ -228,14 +228,14 @@ class VecEnv(ABC):
         """
         pass
 
-    def step(self, actions):
+    def step(self, actions, aux):
         """
         Step the environments with the given action
 
         :param actions: ([int] or [float]) the action
         :return: ([int] or [float], [float], [bool], dict) observation, reward, done, information
         """
-        self.step_async(actions)
+        self.step_async(actions, aux)
         return self.step_wait()
 
     def get_images(self) -> Sequence[np.ndarray]:
@@ -315,8 +315,8 @@ class VecEnvWrapper(VecEnv):
                         action_space=action_space or venv.action_space)
         self.class_attributes = dict(inspect.getmembers(self.__class__))
 
-    def step_async(self, actions):
-        self.venv.step_async(actions)
+    def step_async(self, actions, aux):
+        self.venv.step_async(actions, aux)
 
     @abstractmethod
     def reset(self):
@@ -486,9 +486,9 @@ class SubprocVecEnv(VecEnv):
         observation_space, action_space = self.remotes[0].recv()
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
-    def step_async(self, actions):
-        for remote, action in zip(self.remotes, actions):
-            remote.send(('step', action))
+    def step_async(self, actions, all_aux):
+        for remote, action, aux in zip(self.remotes, actions, all_aux):
+            remote.send(('step', (action, aux)))
         self.waiting = True
 
     def step_wait(self):

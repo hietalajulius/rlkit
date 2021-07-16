@@ -52,11 +52,11 @@ class SuccessRateTest(EvalTest):
 
 
             if save_images:
-                save_regular_images(self.env, self.base_save_folder, self.name, self.epoch, path_length, aux_output)
+                save_regular_images(self.env, self.base_save_folder, self.name, self.epoch, path_length, aux_output[:,:-1])
             trajectory_log = trajectory_log.append(
                     self.env.get_trajectory_log_entry(), ignore_index=True)
 
-            next_o, r, d, env_info = self.env.step(copy.deepcopy(a))
+            next_o, r, d, env_info = self.env.step(copy.deepcopy(a), copy.deepcopy(aux_output[0]))
             path_length += 1
             if env_info['is_success']:
                 success = True
@@ -68,10 +68,16 @@ class SuccessRateTest(EvalTest):
         trajectory_log.to_csv(f"{self.base_save_folder}/epochs/{self.epoch}/trajectory.csv")
         trajectory_log['raw_action'].to_csv(f"{self.base_save_folder}/epochs/{self.epoch}/executable_raw_actions.csv")
         corner_distances = np.linalg.norm(next_o['achieved_goal']-next_o['desired_goal'])
+
+        score_dict = {"corner_distance": corner_distances, "success_rate":0.0, "corner_0": 0.0, "corner_1": 0.0, "corner_2": 0.0, "corner_3": 0.0}
+        for info_key in env_info.keys():
+            if "corner" in info_key and not info_key == "corner_positions":
+                score_dict[info_key] = env_info[info_key]
         if success:
-            return dict(success_rate=1.0, corner_distance=corner_distances)
-        else:
-            return dict(success_rate=0.0, corner_distance=corner_distances)
+            score_dict["success_rate"] = 1.0
+
+
+        return score_dict
             
         
         

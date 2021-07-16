@@ -80,7 +80,7 @@ class RealCornerPredictionTest(EvalTest):
                                 real_corners.append(0.0)
 
                         real_corners = np.array(real_corners).flatten()
-                        sim_corners = aux_output.flatten()
+                        sim_corners = aux_output.flatten()[:-1]
 
                         off = np.linalg.norm(sim_corners-real_corners)
                         off_directory += off

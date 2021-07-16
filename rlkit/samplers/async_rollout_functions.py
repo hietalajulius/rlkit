@@ -42,19 +42,19 @@ def vec_env_rollout(
 
     while path_length < max_path_length:
         o_for_agent = preprocess_obs_for_policy_fn(o)
-        a, _ = agent.get_actions(o_for_agent, **get_action_kwargs)
+        a, aux = agent.get_actions(o_for_agent, **get_action_kwargs)
         agent_info = [{} for _ in range(processes)]
 
         if use_demos:
             if path_length < predefined_actions.shape[0]:
-                delta = np.random.normal(predefined_actions[path_length][:3], 0.01)
+                delta = np.random.normal(predefined_actions[path_length][:3], 0.005)
             else:
                 delta = np.zeros(3)
 
             delta = np.clip(delta/demo_divider, -1, 1)
             a[:num_demoers] = delta
-
-        next_o, r, d, env_info = env.step(copy.deepcopy(a))
+            
+        next_o, r, d, env_info = env.step(copy.deepcopy(a), copy.deepcopy(aux))
         for idx, path_dict in enumerate(paths):
             if not idx in done_indices:
                 if d[idx]:

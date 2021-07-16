@@ -21,6 +21,8 @@ class BlankImagesTest(EvalTest):
         print("Blank eval", eval_number)
         save_images = (self.epoch % self.save_images_every_epoch == 0) and (eval_number == 0)
 
+        save_images = False #TODO: remove if needed
+
         if save_images:
             create_blank_image_directories(self.base_save_folder, self.epoch)
 
@@ -34,9 +36,9 @@ class BlankImagesTest(EvalTest):
             o_for_agent = self.obs_preprocessor(o)
             a, agent_info, aux_output = self.policy.get_action(o_for_agent)
             if save_images:
-                save_blank_images(self.env, self.base_save_folder, self.epoch, path_length, aux_output)
+                save_blank_images(self.env, self.base_save_folder, self.epoch, path_length, aux_output[:,:-1])
 
-            next_o, r, d, env_info = self.env.step(copy.deepcopy(a))
+            next_o, r, d, env_info = self.env.step(copy.deepcopy(a), copy.deepcopy(aux_output[0]))
             path_length += 1
             if env_info['is_success']:
                 success = True
